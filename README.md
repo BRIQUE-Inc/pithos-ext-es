@@ -1,2 +1,2 @@
-# pithos.ext
-Extension Pithos (For NoSQL Database: Redis, ElasticSearch...)
+# pithos-ext-es
+Extension Pithos For ElasticSearch
