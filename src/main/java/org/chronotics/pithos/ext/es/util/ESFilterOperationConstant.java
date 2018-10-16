@@ -54,4 +54,11 @@ public class ESFilterOperationConstant {
     public static final String PREP_OP_FIELD_REMOVE = "REMOVE_FIELD";
     public static final String PREP_OP_DOC_ADD = "ADD_DOC";
     public static final String PREP_OP_DOC_REMOVE = "REMOVE_DOC";
+
+    public static final String PREP_OP_CATEGORY_CHANGE_TO = "change_to";
+    public static final String PREP_OP_CATEGORY_ROW_COL = "row_col";
+    public static final String PREP_OP_CATEGORY_FUNCTION = "function";
+    public static final String PREP_OP_CATEGORY_NAME_CHANGE_TO = "Change to";
+    public static final String PREP_OP_CATEGORY_NAME_ROW_COL = "Row/Column";
+    public static final String PREP_OP_CATEGORY_NAME_FUNCTION = "Function";
 }

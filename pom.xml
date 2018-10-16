@@ -6,7 +6,7 @@
 
     <groupId>org.chronotics</groupId>
     <artifactId>pithos-ext-es</artifactId>
-    <version>1.0</version>
+    <version>1.0-SNAPSHOT</version>
 
     <repositories>
         <repository>
