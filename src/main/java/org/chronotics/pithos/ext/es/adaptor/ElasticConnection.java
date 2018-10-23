@@ -113,8 +113,11 @@ public class ElasticConnection {
         try {
             Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
                     .put("client.transport.sniff", false).build();
-            objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
-                    new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+//            objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
+//                    new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+            objESClient = new PreBuiltTransportClient(objSetting)
+                    .addTransportAddress(new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+
         } catch (Exception objEx) {
             objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
@@ -295,7 +298,7 @@ public class ElasticConnection {
                     if (lstSourceField != null && lstSourceField.size() > 0) {
                         objSearchResponse = getResponseDataFromQuery(new String[] { strIndex },
                                 new String[] { strType }, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                lstFilters, intFromRow, intNumRow, lstFieldModel);
+                                lstFilters, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
 
                         lstSourceField.add("_id");
 
@@ -405,7 +408,7 @@ public class ElasticConnection {
     @SuppressWarnings("unchecked")
     private SearchResponse getResponseDataFromQuery(String[] arrIndex, String[] arrType, String[] arrSource,
                                                     List<ESFilterRequestModel> lstFilterRequest, Integer intFrom, Integer intSize,
-                                                    List<ESFieldModel> lstFieldModel) {
+                                                    List<ESFieldModel> lstFieldModel, List<String> lstDeletedRows) {
         SearchResponse objSearchResponse = new SearchResponse();
 
         try {
@@ -416,13 +419,13 @@ public class ElasticConnection {
             objSearchSourceBuilder.size(intSize).from(intFrom).sort("_doc");
 
             if (lstFilterRequest != null && lstFilterRequest.size() > 0) {
-                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilterRequest,
-                        lstFieldModel);
+                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilterRequest, lstFieldModel, lstDeletedRows);
                 BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
 
                 List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
 
                 if (objQueryBuilder != null) {
+                    // TODO why need to check lstNotAddedFilterRequest?
                     if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
                         objQueryBuilder = generateAggQueryBuilder(arrIndex[0], arrType[0], objQueryBuilder,
                                 lstNotAddedFilterRequest, lstFieldModel);
@@ -1211,6 +1214,7 @@ public class ElasticConnection {
                         && objFieldMappingResponse.mappings().size() > 0) {
                     HashMap<String, ESMappingFieldModel> mapFieldMapping = new HashMap<>();
 
+                    // TODO curIndex always has size 0
                     for (Map.Entry<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> curIndex : objFieldMappingResponse
                             .mappings().entrySet()) {
                         for (Map.Entry<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> curType : curIndex
@@ -1434,58 +1438,59 @@ public class ElasticConnection {
 
                         BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
 
-                        if (objRespone != null
-                                && (objRespone.getStatus().equals(BulkByScrollTask.Status.INCLUDE_UPDATED)
-                                || objRespone.getStatus().equals(BulkByScrollTask.Status.INCLUDE_CREATED))) {
-                            // 3. Remove old field with update_by_query
-                            String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
-                            objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-                            objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(
-                                    new Script(ScriptType.INLINE, "painless", strRemoveScript, Collections.emptyMap()));
-
-                            objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-
-                            if (objRespone != null) {
-                                // 4. Create old field again with new data type
-                                mapFieldProperties = new HashMap<>();
-                                mapFieldMapping = new HashMap<>();
-
-                                objMappingField = createMappingField(strConvertedDataType,
-                                        strConvertedDataType.equals(ESFilterOperationConstant.DATA_TYPE_DATE) ? true
-                                                : false);
-                                mapFieldMapping.put(strField, objMappingField);
-                                mapFieldProperties.put("properties", mapFieldMapping);
-
-                                objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
-                                        .setType(strType)
-                                        .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON)
-                                        .get();
-                                if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
-                                    // 5. Update data from new field back to old field
-                                    String strCopyScript = "ctx._source." + strField + " = ctx._source." + strNewField;
-                                    objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-                                    objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(new Script(
-                                            ScriptType.INLINE, "painless", strCopyScript, Collections.emptyMap()));
-
-                                    objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-
-                                    if (objRespone != null) {
-                                        // 6. Delete new field
-                                        strRemoveScript = "ctx._source.remove(\"" + strNewField + "\")";
-                                        objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-                                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
-                                                .script(new Script(ScriptType.INLINE, "painless", strRemoveScript,
-                                                        Collections.emptyMap()));
-
-                                        objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-
-                                        if (objRespone != null) {
-                                            bIsChanged = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // TODO dont need it anymore. We keep both old field, and new field (the new field name should be got from param)
+//                        if (objRespone != null
+//                                && (objRespone.getStatus().equals(BulkByScrollTask.Status.INCLUDE_UPDATED)
+//                                || objRespone.getStatus().equals(BulkByScrollTask.Status.INCLUDE_CREATED))) {
+//                            // 3. Remove old field with update_by_query
+//                            String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
+//                            objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
+//                            objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(
+//                                    new Script(ScriptType.INLINE, "painless", strRemoveScript, Collections.emptyMap()));
+//
+//                            objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+//
+//                            if (objRespone != null) {
+//                                // 4. Create old field again with new data type
+//                                mapFieldProperties = new HashMap<>();
+//                                mapFieldMapping = new HashMap<>();
+//
+//                                objMappingField = createMappingField(strConvertedDataType,
+//                                        strConvertedDataType.equals(ESFilterOperationConstant.DATA_TYPE_DATE) ? true
+//                                                : false);
+//                                mapFieldMapping.put(strField, objMappingField);
+//                                mapFieldProperties.put("properties", mapFieldMapping);
+//
+//                                objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
+//                                        .setType(strType)
+//                                        .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON)
+//                                        .get();
+//                                if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
+//                                    // 5. Update data from new field back to old field
+//                                    String strCopyScript = "ctx._source." + strField + " = ctx._source." + strNewField;
+//                                    objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
+//                                    objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(new Script(
+//                                            ScriptType.INLINE, "painless", strCopyScript, Collections.emptyMap()));
+//
+//                                    objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+//
+//                                    if (objRespone != null) {
+//                                        // 6. Delete new field
+//                                        strRemoveScript = "ctx._source.remove(\"" + strNewField + "\")";
+//                                        objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
+//                                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
+//                                                .script(new Script(ScriptType.INLINE, "painless", strRemoveScript,
+//                                                        Collections.emptyMap()));
+//
+//                                        objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+//
+//                                        if (objRespone != null) {
+//                                            bIsChanged = true;
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
 
                     }
                 }

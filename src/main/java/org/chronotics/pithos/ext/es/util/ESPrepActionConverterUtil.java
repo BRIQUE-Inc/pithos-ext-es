@@ -133,7 +133,7 @@ public class ESPrepActionConverterUtil {
         String strField = lstBasicInfo.get(0);
         String strInput0 = lstBasicInfo.get(1);
 
-        if (strField == null || !strField.isEmpty()) {
+        if (strField == null || strField.isEmpty()) {
             objPrepDataTypeChangeModel = null;
         } else {
             objPrepDataTypeChangeModel.setField(strField);

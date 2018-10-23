@@ -27,7 +27,7 @@
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <elasticsearch.version>6.4.0</elasticsearch.version>
+        <elasticsearch.version>6.4.2</elasticsearch.version>
         <jackson.version>2.9.6</jackson.version>
     </properties>
 

@@ -15,7 +15,8 @@ import java.util.stream.Collectors;
 public class ESFilterConverterUtil {
     private static Logger objLogger = LoggerFactory.getLogger(ESFilterConverterUtil.class);
 
-    public static List<Object> createBooleanQueryBuilders(List<ESFilterRequestModel> lstESFilterRequest, List<ESFieldModel> lstFields) {
+    public static List<Object> createBooleanQueryBuilders(List<ESFilterRequestModel> lstESFilterRequest,
+                                                          List<ESFieldModel> lstFields, List<String> lstDeletedRows) {
         List<Object> lstResult = new ArrayList<>();
 
         BoolQueryBuilder objBoolQueryBuilder = new BoolQueryBuilder();
@@ -23,7 +24,7 @@ public class ESFilterConverterUtil {
 
         try {
             for (int intCount = 0; intCount < lstESFilterRequest.size(); intCount++) {
-                List<Object> lstReturn = createEachBooleanQueryBuilder(objBoolQueryBuilder, lstESFilterRequest.get(intCount), lstFields);
+                List<Object> lstReturn = createEachBooleanQueryBuilder(objBoolQueryBuilder, lstESFilterRequest.get(intCount), lstFields, lstDeletedRows);
 
                 objBoolQueryBuilder = (BoolQueryBuilder)lstReturn.get(0);
                 Boolean bIsAdded = (Boolean)lstReturn.get(1);
@@ -58,7 +59,8 @@ public class ESFilterConverterUtil {
         return bIsSpecialCondition;
     }
 
-    private static List<Object> createEachBooleanQueryBuilder(BoolQueryBuilder objQueryBuilder, ESFilterRequestModel objESFilterRequest, List<ESFieldModel> lstFields) {
+    private static List<Object> createEachBooleanQueryBuilder(BoolQueryBuilder objQueryBuilder, ESFilterRequestModel objESFilterRequest,
+                                                              List<ESFieldModel> lstFields, List<String> lstDeletedRows) {
         List<Object> lstReturn = new ArrayList<>();
         Boolean bIsAdded = true;
 
@@ -166,6 +168,11 @@ public class ESFilterConverterUtil {
                         break;
                 }
             }
+        }
+
+        // TODO the row _id must not in the array of deleted rows
+        if(lstDeletedRows != null && lstDeletedRows.size() > 0) {
+            objQueryBuilder.mustNot(QueryBuilders.termsQuery("_id", lstDeletedRows));
         }
 
         lstReturn.add(objQueryBuilder);
