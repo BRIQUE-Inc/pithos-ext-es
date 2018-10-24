@@ -57,8 +57,37 @@ public class ESFilterOperationConstant {
 
     public static final String PREP_OP_CATEGORY_CHANGE_TO = "change_to";
     public static final String PREP_OP_CATEGORY_ROW_COL = "row_col";
-    public static final String PREP_OP_CATEGORY_FUNCTION = "function";
     public static final String PREP_OP_CATEGORY_NAME_CHANGE_TO = "Change to";
     public static final String PREP_OP_CATEGORY_NAME_ROW_COL = "Row/Column";
+
+
+    public static final String PREP_OP_TYPE_FUNCTION = "FUNCTION";
+    public static final String PREP_OP_CATEGORY_FUNCTION = "function";
     public static final String PREP_OP_CATEGORY_NAME_FUNCTION = "Function";
+
+    public static final String FUNCTION_ARITHMETIC_ADD = "Add";
+    public static final String FUNCTION_ARITHMETIC_SUB = "Subtract";
+    public static final String FUNCTION_ARITHMETIC_MULTIPLY = "Multiply";
+    public static final String FUNCTION_ARITHMETIC_DIVIDE = "Divide";
+
+    public static final String FUNCTION_STATISTICS_COUNT = "Count";
+    public static final String FUNCTION_STATISTICS_MEAN = "Count";
+    public static final String FUNCTION_STATISTICS_MEDIAN = "Count";
+    public static final String FUNCTION_STATISTICS_MIN = "Count";
+    public static final String FUNCTION_STATISTICS_MAX = "Count";
+    public static final String FUNCTION_STATISTICS_SUM = "Count";
+    public static final String FUNCTION_STATISTICS_VARIANCE = "Count";
+    public static final String FUNCTION_STATISTICS_QUANTILE = "Count";
+    public static final String FUNCTION_STATISTICS_FIRST = "Count";
+    public static final String FUNCTION_STATISTICS_LAST = "Count";
+    public static final String FUNCTION_STATISTICS_RANGE = "Count";
+
+    public static final String FUNCTION_TRANSFORM_LAPLACE = "Count";
+    public static final String FUNCTION_TRANSFORM_FOURIER = "Count";
+    public static final String FUNCTION_TRANSFORM_WAVELET = "Count";
+    public static final String FUNCTION_TRANSFORM_Z = "Count";
+
+    public static final String FUNCTION_CONVERT_TIMESERIES = "Count";
+
+    public static final String FUNCTION_SAMPLING = "Count";
 }

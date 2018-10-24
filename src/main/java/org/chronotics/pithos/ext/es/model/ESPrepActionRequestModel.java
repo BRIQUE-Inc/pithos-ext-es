@@ -6,6 +6,7 @@ public class ESPrepActionRequestModel {
     Long action_idx;
     String action_type;
     String action_id;
+    String new_field_name;
     List<String> data_values;
     List<ESPrepActionCustomValueRequestModel> user_values;
 
@@ -47,5 +48,13 @@ public class ESPrepActionRequestModel {
 
     public void setUser_values(List<ESPrepActionCustomValueRequestModel> user_values) {
         this.user_values = user_values;
+    }
+
+    public String getNew_field_name() {
+        return new_field_name;
+    }
+
+    public void setNew_field_name(String new_field_name) {
+        this.new_field_name = new_field_name;
     }
 }

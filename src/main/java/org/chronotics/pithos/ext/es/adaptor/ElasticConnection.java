@@ -2052,6 +2052,8 @@ public class ElasticConnection {
         ESPrepActionTypeModel objPrepActionType = new ESPrepActionTypeModel();
         objPrepActionType.setId(ESFilterOperationConstant.PREP_OP_TYPE_DOC);
         objPrepActionType.setValue("Rows");
+        objPrepActionType.setCategory_id(ESFilterOperationConstant.PREP_OP_CATEGORY_ROW_COL);
+        objPrepActionType.setCategory_name(ESFilterOperationConstant.PREP_OP_CATEGORY_NAME_ROW_COL);
         objPrepActionType.setActions(Arrays.asList(objPrepAction));
 
         mapResult.put("rows", Arrays.asList(objPrepActionType));
@@ -2065,9 +2067,47 @@ public class ElasticConnection {
         objPrepActionType = new ESPrepActionTypeModel();
         objPrepActionType.setId(ESFilterOperationConstant.PREP_OP_TYPE_FIELDS);
         objPrepActionType.setValue("Columns");
+        objPrepActionType.setCategory_id(ESFilterOperationConstant.PREP_OP_CATEGORY_ROW_COL);
+        objPrepActionType.setCategory_name(ESFilterOperationConstant.PREP_OP_CATEGORY_NAME_ROW_COL);
         objPrepActionType.setActions(Arrays.asList(objPrepAction));
 
         mapResult.put("columns", Arrays.asList(objPrepActionType));
+
+        //FUNCTIONAL
+        List<ESPrepActionModel> lstFunctionAction = new ArrayList<>();
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_ADD);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_ADD);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_SUB);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_SUB);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_MULTIPLY);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_MULTIPLY);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepActionType = new ESPrepActionTypeModel();
+        objPrepActionType.setId(ESFilterOperationConstant.PREP_OP_TYPE_FUNCTION);
+        objPrepActionType.setValue("Functions");
+        objPrepActionType.setCategory_id(ESFilterOperationConstant.PREP_OP_CATEGORY_FUNCTION);
+        objPrepActionType.setCategory_name(ESFilterOperationConstant.PREP_OP_CATEGORY_NAME_FUNCTION);
+        objPrepActionType.setActions(lstFunctionAction);
+
+        mapResult.put(ESFilterOperationConstant.PREP_OP_CATEGORY_FUNCTION, Arrays.asList(objPrepActionType));
 
         //DATA TYPE CHANGE
         List<ESPrepActionModel> lstDataTypeChangeTextAction = new ArrayList<>();
