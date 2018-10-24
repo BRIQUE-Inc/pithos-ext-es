@@ -296,9 +296,15 @@ public class ElasticConnection {
                     }
 
                     if (lstSourceField != null && lstSourceField.size() > 0) {
-                        objSearchResponse = getResponseDataFromQuery(new String[] { strIndex },
-                                new String[] { strType }, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                lstFilters, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
+                        if (objFilterAllRequest != null) {
+                            objSearchResponse = getResponseDataFromQuery(new String[] { strIndex },
+                                    new String[] { strType }, lstSourceField.toArray(new String[lstSourceField.size()]),
+                                    lstFilters, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
+                        } else {
+                            objSearchResponse = getResponseDataFromQuery(new String[] { strIndex },
+                                    new String[] { strType }, lstSourceField.toArray(new String[lstSourceField.size()]),
+                                    lstFilters, intFromRow, intNumRow, lstFieldModel, new ArrayList<>());
+                        }
 
                         lstSourceField.add("_id");
 
