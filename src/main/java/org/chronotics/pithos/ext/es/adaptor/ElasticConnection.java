@@ -184,7 +184,7 @@ public class ElasticConnection {
         Map<String, Map<String, List<ESFieldModel>>> mapFields = new HashMap<>();
 
         try {
-            String[] arrField = { "*" };
+            String[] arrField = {"*"};
 
             if (lstField != null && lstField.size() > 0) {
                 arrField = lstField.toArray(new String[lstField.size()]);
@@ -298,12 +298,12 @@ public class ElasticConnection {
 
                     if (lstSourceField != null && lstSourceField.size() > 0) {
                         if (objFilterAllRequest != null) {
-                            objSearchResponse = getResponseDataFromQuery(new String[] { strIndex },
-                                    new String[] { strType }, lstSourceField.toArray(new String[lstSourceField.size()]),
+                            objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
+                                    new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
                                     lstFilters, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
                         } else {
-                            objSearchResponse = getResponseDataFromQuery(new String[] { strIndex },
-                                    new String[] { strType }, lstSourceField.toArray(new String[lstSourceField.size()]),
+                            objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
+                                    new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
                                     lstFilters, intFromRow, intNumRow, lstFieldModel, new ArrayList<>());
                         }
 
@@ -1107,7 +1107,7 @@ public class ElasticConnection {
             Integer intFilterType = 0;
             Double dbCustomValue = null;
 
-            for(ESFilterRequestModel objESFilterRequestModel: objFilterAllRequestModel.getFilters()) {
+            for (ESFilterRequestModel objESFilterRequestModel : objFilterAllRequestModel.getFilters()) {
                 intFilterType = objESFilterRequestModel.getFiltered_operation();
 
                 if (lstFields != null && lstFields.size() == 1) {
@@ -1131,7 +1131,7 @@ public class ElasticConnection {
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                         && objSearchResponse.getAggregations() != null) {
                     if (objSearchResponse.getAggregations().get(strStatName) != null) {
-                        MatrixStats objStat = (MatrixStats)objSearchResponse.getAggregations().get(strStatName);
+                        MatrixStats objStat = (MatrixStats) objSearchResponse.getAggregations().get(strStatName);
 
                         if (objStat != null) {
                             objMatrixStat.setField_stats(new ArrayList<>());
@@ -1159,7 +1159,7 @@ public class ElasticConnection {
                                     String strCurFieldCorr = lstStatFields.get(intCountField);
 
                                     objLogger.info("strCurFieldCorr: " + strCurFieldCorr);
-                                    objLogger.info("corr: " +  objStat.getCorrelation(strCurField, strCurFieldCorr));
+                                    objLogger.info("corr: " + objStat.getCorrelation(strCurField, strCurFieldCorr));
                                     objLogger.info("cov: " + objStat.getCovariance(strCurField, strCurFieldCorr));
 
                                     Boolean bCanAdd = false;
@@ -1857,7 +1857,7 @@ public class ElasticConnection {
                     String strJSONData = objMapper.writeValueAsString(lstData.get(0));
                     Class<?> classZ = lstData.get(0).getClass();
 
-                    HashMap<String, Object> objJSONData = (lstData.get(0) instanceof HashMap) ? (HashMap<String, Object>)lstData.get(0) : objMapper.readValue(strJSONData, HashMap.class);
+                    HashMap<String, Object> objJSONData = (lstData.get(0) instanceof HashMap) ? (HashMap<String, Object>) lstData.get(0) : objMapper.readValue(strJSONData, HashMap.class);
 
                     objLogger.info("lstData(0): " + lstData.get(0));
                     objLogger.info("objJSONData: " + objJSONData);
@@ -2827,6 +2827,20 @@ public class ElasticConnection {
                             }
                         }
                     }
+
+                    if (lstPrepOp.get(intCount) instanceof ESPrepFunctionArithmeticModel) {
+                        ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) lstPrepOp.get(intCount);
+
+                        if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+                            String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
+
+                            bIsPrepAll = true;
+
+                            if (!bIsPrepAll) {
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         } catch (Exception objEx) {
@@ -2834,5 +2848,83 @@ public class ElasticConnection {
         }
 
         return bIsPrepAll;
+    }
+
+    private Boolean calculateArithmeticFunction(String strIndex, String strType, String strField, String newFieldName,
+                                                String strArithmeticOperation, String strArithmeticParam1, String strArithmeticParam2) {
+        Boolean bIsFormatted = false;
+        Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
+                = createNewMappingField(ESFilterOperationConstant.DATA_TYPE_NUMERIC, newFieldName);
+        PutMappingResponse objPutMappingResponse = null;
+        try {
+            objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
+                    .setType(strType)
+                    .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        // TODO strField is used for unary expression (sin, cos, tan)
+        if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
+            try {
+                if (objESClient != null) {
+                    String strFormatScript = "";
+
+                    switch (strArithmeticOperation) {
+                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_ADD:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strArithmeticParam1)
+                                    .append(" + ctx._source.").append(strArithmeticParam2).toString();
+                            break;
+                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_SUB:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strArithmeticParam1)
+                                    .append(" - ctx._source.").append(strArithmeticParam2).toString();
+                            break;
+                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_MULTIPLY:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strArithmeticParam1)
+                                    .append(" * ctx._source.").append(strArithmeticParam2).toString();
+                            break;
+                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strArithmeticParam1)
+                                    .append(" / ctx._source.").append(strArithmeticParam2).toString();
+                            break;
+                    }
+
+                    if (strFormatScript != null && !strFormatScript.isEmpty()) {
+                        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
+                                .newRequestBuilder(objESClient);
+                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
+                                .script(new Script(ScriptType.INLINE, "painless", strFormatScript, Collections.emptyMap()));
+
+                        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+
+                        if (objRespone != null) {
+                            bIsFormatted = true;
+                        }
+                    }
+                }
+            } catch (Exception objEx) {
+                objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            }
+        }
+        return bIsFormatted;
+    }
+
+    public Boolean deleteField(String strIndex, String strField) {
+        String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
+        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
+        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
+                .script(new Script(ScriptType.INLINE, "painless", strRemoveScript,
+                        Collections.emptyMap()));
+
+        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+
+        if (objRespone != null) {
+            return true;
+        }
+        return false;
     }
 }

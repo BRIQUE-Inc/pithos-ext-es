@@ -22,7 +22,7 @@ public class Main {
 
         ObjectMapper objectMapper = new ObjectMapper();
         String test = "{\"index\":\"ss_demo_data_4\",\"type\":\"spi\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"DATA_FORMAT\",\"action_id\":\"LowerCase\",\"data_values\":[\"lot_cd\"],\"user_values\":null}]}";
-        String test2 = "{\"index\":\"ss_demo_data_4\",\"type\":\"spi\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"FIELDS\",\"action_id\":\"REMOVE_FIELD\",\"data_values\":[\"lot_cd\"],\"user_values\":null}]}";
+        String test2 = "{\"index\":\"shakespeare\",\"type\":\"doc\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"FIELDS\",\"action_id\":\"REMOVE_FIELD\",\"data_values\":[\"new_text_entry\"],\"user_values\":null}]}";
         String test3 = "{\"index\":\"ss_demo_data_4\",\"type\":\"spi\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"DATA_TYPE_CHANGE\",\"action_id\":\"keyword\",\"data_values\":[\"module_num\"],\"user_values\":null}]}";
         String test4 = "{\n" +
                 "  \"index\": \"shakespeare\",\n" +
@@ -41,7 +41,7 @@ public class Main {
                 "  ]\n" +
                 "}";
 
-        ESPrepListActionRequestModel objAllPreps = objectMapper.readValue(test4, ESPrepListActionRequestModel.class);
+        ESPrepListActionRequestModel objAllPreps = objectMapper.readValue(test2, ESPrepListActionRequestModel.class);
         List<ESPrepAbstractModel> lstPrepOp = ESPrepActionConverterUtil.convert(objAllPreps);
         objESConnection.prepESData(lstPrepOp);
 
