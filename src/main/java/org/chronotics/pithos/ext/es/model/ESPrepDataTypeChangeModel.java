@@ -6,6 +6,7 @@ public class ESPrepDataTypeChangeModel extends ESPrepAbstractModel {
     Boolean is_forced;
     String failed_default_value;
     String date_format;
+    String new_field_name;
 
     public String getField() {
         return field;
@@ -45,5 +46,13 @@ public class ESPrepDataTypeChangeModel extends ESPrepAbstractModel {
 
     public void setDate_format(String date_format) {
         this.date_format = date_format;
+    }
+
+    public String getNew_field_name() {
+        return new_field_name;
+    }
+
+    public void setNew_field_name(String new_field_name) {
+        this.new_field_name = new_field_name;
     }
 }

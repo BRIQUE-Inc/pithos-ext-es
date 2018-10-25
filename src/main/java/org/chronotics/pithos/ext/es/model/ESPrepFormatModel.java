@@ -5,6 +5,7 @@ public class ESPrepFormatModel extends ESPrepAbstractModel {
     String format_op;
     String format_param_1;
     String format_param_2;
+    String new_field_name;
 
     public String getField() {
         return field;
@@ -36,5 +37,13 @@ public class ESPrepFormatModel extends ESPrepAbstractModel {
 
     public void setFormat_param_2(String format_param_2) {
         this.format_param_2 = format_param_2;
+    }
+
+    public String getNew_field_name() {
+        return new_field_name;
+    }
+
+    public void setNew_field_name(String new_field_name) {
+        this.new_field_name = new_field_name;
     }
 }

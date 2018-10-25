@@ -1,5 +1,6 @@
 package org.chronotics.pithos.ext.es.adaptor;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chronotics.pithos.ext.es.log.Logger;
 import org.chronotics.pithos.ext.es.log.LoggerFactory;
@@ -1393,10 +1394,23 @@ public class ElasticConnection {
         return new ArrayList<>(Arrays.asList(strConvertScript, strCatchConvertScript));
     }
 
-    private Boolean changeFieldDataType(String strIndex, String strType, String strField, String strConvertedDataType,
+    private Map<String, Map<String, ESMappingFieldModel>> createNewMappingField(String strConvertedDataType, String strNewField) {
+        Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties = new HashMap<>();
+        Map<String, ESMappingFieldModel> mapFieldMapping = new HashMap<>();
+
+        ESMappingFieldModel objMappingField = createMappingField(strConvertedDataType,
+                strConvertedDataType.equals(ESFilterOperationConstant.DATA_TYPE_DATE) ? true : false);
+        mapFieldMapping.put(strNewField, objMappingField);
+        mapFieldProperties.put("properties", mapFieldMapping);
+
+        return mapFieldProperties;
+    }
+
+    private Boolean changeFieldDataType(String strIndex, String strType, String strField,
+                                        String newFieldName, String strConvertedDataType,
                                         Boolean bIsForce, String strFailedDefaultValue, String strDateFormat) {
         Boolean bIsChanged = false;
-        String strNewField = strField + "_" + String.valueOf(Calendar.getInstance().getTimeInMillis());
+        String strNewField = newFieldName;
 
         try {
             if (objESClient != null && lstConvertedDataType.contains(strConvertedDataType)) {
@@ -1404,14 +1418,7 @@ public class ElasticConnection {
                         new ArrayList<>(Arrays.asList(strField)));
                 if (lstField != null && lstField.size() > 0) {
                     // 1. Create New Field
-                    Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties = new HashMap<>();
-                    Map<String, ESMappingFieldModel> mapFieldMapping = new HashMap<>();
-
-                    ESMappingFieldModel objMappingField = createMappingField(strConvertedDataType,
-                            strConvertedDataType.equals(ESFilterOperationConstant.DATA_TYPE_DATE) ? true : false);
-                    mapFieldMapping.put(strNewField, objMappingField);
-                    mapFieldProperties.put("properties", mapFieldMapping);
-
+                    Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties = createNewMappingField(strConvertedDataType, strNewField);
                     PutMappingResponse objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
                             .setType(strType)
                             .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
@@ -1508,66 +1515,79 @@ public class ElasticConnection {
         return bIsChanged;
     }
 
-    private Boolean formatData(String strIndex, String strType, String strField, String strFormatOperation,
-                               String strFormatParam1, String strFormatParam2) {
+    private Boolean formatData(String strIndex, String strType, String strField, String newFieldName,
+                               String strFormatOperation, String strFormatParam1, String strFormatParam2) {
         Boolean bIsFormatted = false;
-
+        // TODO Create new field with newFieldName
+        Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
+                = createNewMappingField(ESFilterOperationConstant.DATA_TYPE_TEXT, newFieldName);
+        PutMappingResponse objPutMappingResponse = null;
         try {
-            if (objESClient != null) {
-                String strFormatScript = "";
+            objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
+                    .setType(strType)
+                    .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
 
-                switch (strFormatOperation) {
-                    case ESFilterOperationConstant.DATA_FORMAT_LOWERCASE:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField)
-                                .append(" = ctx._source.").append(strField).append(".toLowerCase();").toString();
-                        break;
-                    case ESFilterOperationConstant.DATA_FORMAT_UPPERCASE:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField)
-                                .append(" = ctx._source.").append(strField).append(".toUpperCase();").toString();
-                        break;
-                    case ESFilterOperationConstant.DATA_FORMAT_ADD_POSTFIX:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField)
-                                .append(" = ctx._source.").append(strField).append(" + \"").append(strFormatParam1)
-                                .append("\";").toString();
-                        break;
-                    case ESFilterOperationConstant.DATA_FORMAT_ADD_PREFIX:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField).append(" = \"")
-                                .append(strFormatParam1).append("\" + ").append(strField).append(";").toString();
-                        break;
-                    case ESFilterOperationConstant.DATA_REPLACE_REMOVE_CHAR:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField)
-                                .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
-                                .append("\", \"\");").toString();
-                        break;
-                    case ESFilterOperationConstant.DATA_REPLACE_REMOVE_WHITE_SPACE:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField)
-                                .append(" = ctx._source.").append(strField).append(".replaceAll(\"\\s+\", \"\");")
-                                .toString();
-                        break;
-                    case ESFilterOperationConstant.DATA_REPLACE_REPLACE_POS:
-                        break;
-                    case ESFilterOperationConstant.DATA_REPLACE_REPLACE_TEXT:
-                        strFormatScript = new StringBuilder().append("ctx._source.").append(strField)
-                                .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
-                                .append("\", \"").append(strFormatParam2).append("\");").toString();
-                        break;
-                }
+        if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
+            try {
+                if (objESClient != null) {
+                    String strFormatScript = "";
 
-                if (strFormatScript != null && !strFormatScript.isEmpty()) {
-                    UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
-                            .newRequestBuilder(objESClient);
-                    objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
-                            .script(new Script(ScriptType.INLINE, "painless", strFormatScript, Collections.emptyMap()));
+                    switch (strFormatOperation) {
+                        case ESFilterOperationConstant.DATA_FORMAT_LOWERCASE:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strField).append(".toLowerCase();").toString();
+                            break;
+                        case ESFilterOperationConstant.DATA_FORMAT_UPPERCASE:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strField).append(".toUpperCase();").toString();
+                            break;
+                        case ESFilterOperationConstant.DATA_FORMAT_ADD_POSTFIX:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strField).append(" + \"").append(strFormatParam1)
+                                    .append("\";").toString();
+                            break;
+                        case ESFilterOperationConstant.DATA_FORMAT_ADD_PREFIX:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName).append(" = \"")
+                                    .append(strFormatParam1).append("\" + ").append(strField).append(";").toString();
+                            break;
+                        case ESFilterOperationConstant.DATA_REPLACE_REMOVE_CHAR:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
+                                    .append("\", \"\");").toString();
+                            break;
+                        case ESFilterOperationConstant.DATA_REPLACE_REMOVE_WHITE_SPACE:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strField).append(".replaceAll(\"\\s+\", \"\");")
+                                    .toString();
+                            break;
+                        case ESFilterOperationConstant.DATA_REPLACE_REPLACE_POS:
+                            break;
+                        case ESFilterOperationConstant.DATA_REPLACE_REPLACE_TEXT:
+                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                                    .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
+                                    .append("\", \"").append(strFormatParam2).append("\");").toString();
+                            break;
+                    }
 
-                    BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+                    if (strFormatScript != null && !strFormatScript.isEmpty()) {
+                        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
+                                .newRequestBuilder(objESClient);
+                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
+                                .script(new Script(ScriptType.INLINE, "painless", strFormatScript, Collections.emptyMap()));
 
-                    if (objRespone != null) {
-                        bIsFormatted = true;
+                        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+
+                        if (objRespone != null) {
+                            bIsFormatted = true;
+                        }
                     }
                 }
+            } catch (Exception objEx) {
+                objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
             }
-        } catch (Exception objEx) {
-            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
 
         return bIsFormatted;
@@ -2780,8 +2800,10 @@ public class ElasticConnection {
                         if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
                             String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
 
-                            bIsPrepAll = formatData(strCurIndex, objPrep.getType(), objPrep.getField(),
-                                    objPrep.getFormat_op(), objPrep.getFormat_param_1(), objPrep.getFormat_param_2());
+                            bIsPrepAll = formatData(strCurIndex, objPrep.getType(),
+                                    objPrep.getField(), objPrep.getNew_field_name(),
+                                    objPrep.getFormat_op(), objPrep.getFormat_param_1(),
+                                    objPrep.getFormat_param_2());
 
                             if (!bIsPrepAll) {
                                 break;
@@ -2795,7 +2817,8 @@ public class ElasticConnection {
                         if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
                             String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
 
-                            bIsPrepAll = changeFieldDataType(strCurIndex, objPrep.getType(), objPrep.getField(),
+                            bIsPrepAll = changeFieldDataType(strCurIndex, objPrep.getType(),
+                                    objPrep.getField(), objPrep.getNew_field_name(),
                                     objPrep.getConverted_data_type(), objPrep.getIs_forced(),
                                     objPrep.getFailed_default_value(), objPrep.getDate_format());
 

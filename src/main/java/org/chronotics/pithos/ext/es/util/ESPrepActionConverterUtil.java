@@ -90,6 +90,7 @@ public class ESPrepActionConverterUtil {
         if (strField != null && !strField.isEmpty()) {
             objPrepFormatModel.setField(strField);
             objPrepFormatModel.setFormat_op(objRequest.getAction_id());
+            objPrepFormatModel.setNew_field_name(objRequest.getNew_field_name());
 
             switch (objRequest.getAction_id()) {
                 case ESFilterOperationConstant.DATA_FORMAT_UPPERCASE:
@@ -140,6 +141,7 @@ public class ESPrepActionConverterUtil {
             objPrepDataTypeChangeModel.setIs_forced(true);
             objPrepDataTypeChangeModel.setConverted_data_type(objRequest.getAction_id());
             objPrepDataTypeChangeModel.setFailed_default_value("");
+            objPrepDataTypeChangeModel.setNew_field_name(objRequest.getNew_field_name());
 
             switch (objRequest.getAction_id()) {
                 case ESFilterOperationConstant.DATA_TYPE_DATE:

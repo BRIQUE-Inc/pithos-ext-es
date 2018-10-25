@@ -24,28 +24,45 @@ public class Main {
         String test = "{\"index\":\"ss_demo_data_4\",\"type\":\"spi\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"DATA_FORMAT\",\"action_id\":\"LowerCase\",\"data_values\":[\"lot_cd\"],\"user_values\":null}]}";
         String test2 = "{\"index\":\"ss_demo_data_4\",\"type\":\"spi\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"FIELDS\",\"action_id\":\"REMOVE_FIELD\",\"data_values\":[\"lot_cd\"],\"user_values\":null}]}";
         String test3 = "{\"index\":\"ss_demo_data_4\",\"type\":\"spi\",\"actions\":[{\"action_idx\":1539325491093,\"action_type\":\"DATA_TYPE_CHANGE\",\"action_id\":\"keyword\",\"data_values\":[\"module_num\"],\"user_values\":null}]}";
-//        ESPrepListActionRequestModel objAllPreps = objectMapper.readValue(test3, ESPrepListActionRequestModel.class);
-//        List<ESPrepAbstractModel> lstPrepOp = ESPrepActionConverterUtil.convert(objAllPreps);
-//        objESConnection.prepESData(lstPrepOp);
-
         String test4 = "{\n" +
-                "  \"filters\": [\n" +
+                "  \"index\": \"shakespeare\",\n" +
+                "  \"type\": \"doc\",\n" +
+                "  \"actions\": [\n" +
                 "    {\n" +
-                "      \"filtered_on_field\": \"y_offset\",\n" +
-                "      \"filtered_operation\": \"5\",\n" +
-                "      \"filtered_conditions\": [],\n" +
-                "      \"from_range_condition\": \"-0.1\",\n" +
-                "      \"to_range_condition\": \"0\"\n" +
+                "      \"action_idx\": 1539325491093,\n" +
+                "      \"action_type\": \"DATA_FORMAT\",\n" +
+                "      \"action_id\": \"UpperCase\",\n" +
+                "      \"new_field_name\": \"new_text_entry\",\n" +
+                "      \"data_values\": [\n" +
+                "        \"text_entry\"\n" +
+                "      ],\n" +
+                "      \"user_values\": null\n" +
                 "    }\n" +
-                "  ],\n" +
-                "  \"selected_fields\": [\n" +
-                "    \"y_offset\"],\n" +
-                "    \"deleted_rows\": [\"r2xgsmUBtvI6V1Kaqtf5\", \"tmxgsmUBtvI6V1Kaqtf5\", \"vWxgsmUBtvI6V1Kaqtf5\"]\n" +
+                "  ]\n" +
                 "}";
-        ESFilterAllRequestModel filter = objectMapper.readValue(test4, ESFilterAllRequestModel.class);
-        Map<String, Object> mapSearchResult = objESConnection.searchDataWithFieldIdxAndRowIdx("ss_demo_data_4", "spi", "",
-                new ArrayList<String>(),0, 25, 0, 0, true, filter);
-        System.out.println(objectMapper.writeValueAsString(mapSearchResult));
+
+        ESPrepListActionRequestModel objAllPreps = objectMapper.readValue(test4, ESPrepListActionRequestModel.class);
+        List<ESPrepAbstractModel> lstPrepOp = ESPrepActionConverterUtil.convert(objAllPreps);
+        objESConnection.prepESData(lstPrepOp);
+
+//        String test4 = "{\n" +
+//                "  \"filters\": [\n" +
+//                "    {\n" +
+//                "      \"filtered_on_field\": \"y_offset\",\n" +
+//                "      \"filtered_operation\": \"5\",\n" +
+//                "      \"filtered_conditions\": [],\n" +
+//                "      \"from_range_condition\": \"-0.1\",\n" +
+//                "      \"to_range_condition\": \"0\"\n" +
+//                "    }\n" +
+//                "  ],\n" +
+//                "  \"selected_fields\": [\n" +
+//                "    \"y_offset\"],\n" +
+//                "    \"deleted_rows\": [\"r2xgsmUBtvI6V1Kaqtf5\", \"tmxgsmUBtvI6V1Kaqtf5\", \"vWxgsmUBtvI6V1Kaqtf5\"]\n" +
+//                "}";
+//        ESFilterAllRequestModel filter = objectMapper.readValue(test4, ESFilterAllRequestModel.class);
+//        Map<String, Object> mapSearchResult = objESConnection.searchDataWithFieldIdxAndRowIdx("ss_demo_data_4", "spi", "",
+//                new ArrayList<String>(),0, 25, 0, 0, true, filter);
+//        System.out.println(objectMapper.writeValueAsString(mapSearchResult));
 
     }
 }
