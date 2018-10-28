@@ -22,6 +22,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.transport.TransportClient;
@@ -241,7 +242,9 @@ public class ElasticConnection {
                                     }
                                 }
 
-                                lstESField.add(objFieldModel);
+                                if (!objFieldModel.getType().equals("text")) {
+                                    lstESField.add(objFieldModel);
+                                }
                             }
                         }
 
@@ -1406,6 +1409,236 @@ public class ElasticConnection {
         return mapFieldProperties;
     }
 
+    private List<String> generateFieldPrepActionScript(ESPrepAbstractModel objPrepAction) {
+        List<String> lstScript = new ArrayList<>();
+
+        if (objPrepAction instanceof ESPrepFieldModel) {
+            ESPrepFieldModel objPrep = (ESPrepFieldModel) objPrepAction;
+
+            if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+                //Generate remove script field
+                if (objPrep.getRemove_fields() != null && objPrep.getRemove_fields().size() > 0) {
+                    for (String strField: objPrep.getRemove_fields()) {
+                        String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
+                        lstScript.add(strRemoveScript);
+                    }
+                }
+
+                //Generate copy script
+                if (objPrep.getCopy_from_fields() != null && objPrep.getCopy_to_fields() != null
+                        && objPrep.getCopy_to_fields().size() == objPrep.getCopy_from_fields().size()) {
+                    for (int intCountCopy = 0; intCountCopy < objPrep.getCopy_from_fields()
+                            .size(); intCountCopy++) {
+                        String strCopyScript = "ctx._source." + objPrep.getCopy_to_fields().get(intCountCopy) + " = ctx._source." + objPrep.getCopy_from_fields().get(intCountCopy);
+                        lstScript.add(strCopyScript);
+                    }
+                }
+            }
+        }
+
+        return lstScript;
+    }
+
+    private String generatePrepActionScript(ESPrepAbstractModel objPrepAction) {
+        String strScript = "";
+        String strCurIndex = objPrepAction.getIndex();
+
+        if (objPrepAction instanceof ESPrepFormatModel) {
+            ESPrepFormatModel objPrep = (ESPrepFormatModel) objPrepAction;
+
+            if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+                strScript = generateFormatDataScript(objPrep.getField(), objPrep.getNew_field_name(),
+                        objPrep.getFormat_op(), objPrep.getFormat_param_1(),
+                        objPrep.getFormat_param_2());
+            }
+        }
+
+        if (objPrepAction instanceof ESPrepDataTypeChangeModel) {
+            ESPrepDataTypeChangeModel objPrep = (ESPrepDataTypeChangeModel) objPrepAction;
+
+            if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+                strScript = generateChangeFieldDataTypeScript(objPrep.getField(), objPrep.getNew_field_name(),
+                        objPrep.getConverted_data_type(), objPrep.getIs_forced(),
+                        objPrep.getFailed_default_value(), objPrep.getDate_format());
+            }
+        }
+
+        if (objPrepAction instanceof ESPrepFunctionArithmeticModel) {
+            ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) objPrepAction;
+
+            if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+                strScript = "";
+            }
+        }
+
+        return strScript;
+    }
+
+    private List<String> getNewFieldFromAction(ESPrepAbstractModel objPrepAction, String strOldField, String strNewField) {
+        String strNewFieldName = "";
+        String strNewFieldType = "";
+
+        if (objPrepAction instanceof ESPrepFieldModel) {
+            strNewFieldName = strNewField;
+            List<ESFieldModel> lstField = getFieldsMetaData(objPrepAction.getIndex(), objPrepAction.getType(),
+                    new ArrayList<>(Arrays.asList(strOldField)));
+
+            strNewFieldType = lstField.get(0).getType();
+        }
+
+        if (objPrepAction instanceof  ESPrepFormatModel) {
+            ESPrepFormatModel objFormat = (ESPrepFormatModel)objPrepAction;
+            strNewFieldName = objFormat.getNew_field_name();
+
+            List<ESFieldModel> lstField = getFieldsMetaData(objFormat.getIndex(), objFormat.getType(),
+                    new ArrayList<>(Arrays.asList(objFormat.getField())));
+
+            strNewFieldType = lstField.get(0).getType();
+        }
+
+        if (objPrepAction instanceof ESPrepDataTypeChangeModel) {
+            ESPrepDataTypeChangeModel objPrep = (ESPrepDataTypeChangeModel) objPrepAction;
+            strNewFieldName = objPrep.getNew_field_name();
+            strNewFieldType = objPrep.getConverted_data_type();
+        }
+
+        if (objPrepAction instanceof ESPrepFunctionArithmeticModel) {
+            ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) objPrepAction;
+
+            strNewFieldName = objPrep.getNew_field_name();
+            List<ESFieldModel> lstField = getFieldsMetaData(objPrep.getIndex(), objPrep.getType(),
+                    new ArrayList<>(Arrays.asList(objPrep.getField())));
+
+            strNewFieldType = lstField.get(0).getType();
+        }
+
+        List<String> lstNewField = new ArrayList<>();
+
+        if (strNewFieldName != null && !strNewFieldName.isEmpty() && strNewFieldType != null && !strNewFieldType.isEmpty()) {
+            lstNewField.add(strNewFieldName);
+            lstNewField.add(strNewFieldType);
+        }
+
+        return lstNewField;
+    }
+
+    private Boolean prepBulkAction(String strIndex, String strType, ESPrepAbstractModel objPrepAction, Integer intPageSize) {
+        Boolean bIsFinish = true;
+
+        //0. Create new field
+        List<String> lstNewFieldInfo = getNewFieldFromAction(objPrepAction, "", "");
+
+        if (lstNewFieldInfo != null && lstNewFieldInfo.size() == 2) {
+            Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
+                    = createNewMappingField(lstNewFieldInfo.get(1), lstNewFieldInfo.get(0));
+            PutMappingResponse objPutMappingResponse = null;
+
+            try {
+                objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
+                        .setType(strType)
+                        .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+
+            if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
+                try {
+                    bIsFinish = true;
+                } catch (Exception objEx) {
+                    bIsFinish = false;
+                }
+            } else {
+                bIsFinish = false;
+            }
+        }
+
+        if (bIsFinish) {
+            //1. Scroll all rows
+            Long lTimeValue = 60000l;
+
+            SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .setSize(intPageSize).get();
+
+            Long lCurNumHit = 0l;
+            Long lTotalHit = 0l;
+            do {
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    lTotalHit = objSearchResponse.getHits().getTotalHits();
+                    lCurNumHit += objSearchResponse.getHits().getHits().length;
+
+                    try {
+                        //2. With each scroll time, bulk update
+                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
+
+                        //2.1. Create Elastic Script that is related with current action
+                        String strScript = generatePrepActionScript(objPrepAction);
+
+                        if (strScript != null && !strScript.isEmpty()) {
+                            //2.2. Create Update Request and add to bulk processor
+                            for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                                UpdateRequest objUpdateRequest = new UpdateRequest(strIndex, strType, objHit.getId());
+                                objUpdateRequest.script(new Script(strScript));
+
+                                objBulkProcessor.add(objUpdateRequest);
+                            }
+                        }
+
+                        objBulkProcessor.flush();
+                        objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
+                    } catch (Exception objEx) {
+                        bIsFinish = false;
+                        objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+
+                        break;
+                    }
+
+                    objLogger.info("Cur Hit: " + lCurNumHit);
+                    objLogger.info("Total Hits: " + lTotalHit);
+
+                    //3. Continue to scroll
+                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(lTimeValue)).get();
+                } else {
+                    break;
+                }
+            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0);
+        }
+
+        //3. Return
+        return bIsFinish;
+    }
+
+    private String generateChangeFieldDataTypeScript(String strField,
+                                              String newFieldName, String strConvertedDataType,
+                                              Boolean bIsForce, String strFailedDefaultValue, String strDateFormat) {
+        String strPainlessScript = "";
+        String strConvertScript = "";
+        String strConvertCatchScript = "";
+
+        List<String> lstConvertScript = generateDataTypeConvertScript(strField, newFieldName,
+                strConvertedDataType, strDateFormat, strFailedDefaultValue);
+        strConvertScript = lstConvertScript.get(0);
+        strConvertCatchScript = lstConvertScript.get(1);
+
+        if (!bIsForce) {
+            strPainlessScript = new StringBuilder().append("try { ").append(strConvertScript).append(
+                    " } catch (Exception objEx) { throw new RuntimeException(\"Can't not convert data\"); }")
+                    .toString();
+        } else {
+            strPainlessScript = new StringBuilder().append("try { ").append(strConvertScript)
+                    .append(" } catch (Exception objEx) { ").append(strConvertCatchScript).append(" }")
+                    .toString();
+        }
+
+        return strPainlessScript;
+    }
+
     private Boolean changeFieldDataType(String strIndex, String strType, String strField,
                                         String newFieldName, String strConvertedDataType,
                                         Boolean bIsForce, String strFailedDefaultValue, String strDateFormat) {
@@ -1425,24 +1658,7 @@ public class ElasticConnection {
 
                     if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
                         // 2. Copy and convert data to new field
-                        String strPainlessScript = "";
-                        String strConvertScript = "";
-                        String strConvertCatchScript = "";
-
-                        List<String> lstConvertScript = generateDataTypeConvertScript(strField, strNewField,
-                                strConvertedDataType, strDateFormat, strFailedDefaultValue);
-                        strConvertScript = lstConvertScript.get(0);
-                        strConvertCatchScript = lstConvertScript.get(1);
-
-                        if (!bIsForce) {
-                            strPainlessScript = new StringBuilder().append("try { ").append(strConvertScript).append(
-                                    " } catch (Exception objEx) { throw new RuntimeException(\"Can't not convert data\"); }")
-                                    .toString();
-                        } else {
-                            strPainlessScript = new StringBuilder().append("try { ").append(strConvertScript)
-                                    .append(" } catch (Exception objEx) { ").append(strConvertCatchScript).append(" }")
-                                    .toString();
-                        }
+                        String strPainlessScript = generateChangeFieldDataTypeScript(strField, strNewField, strConvertedDataType, bIsForce, strFailedDefaultValue, strDateFormat);
 
                         UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
                                 .newRequestBuilder(objESClient);
@@ -1515,6 +1731,50 @@ public class ElasticConnection {
         return bIsChanged;
     }
 
+    private String generateFormatDataScript(String strField, String newFieldName,
+                                            String strFormatOperation, String strFormatParam1, String strFormatParam2) {
+        String strFormatScript = "";
+
+        switch (strFormatOperation) {
+            case ESFilterOperationConstant.DATA_FORMAT_LOWERCASE:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strField).append(".toLowerCase();").toString();
+                break;
+            case ESFilterOperationConstant.DATA_FORMAT_UPPERCASE:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strField).append(".toUpperCase();").toString();
+                break;
+            case ESFilterOperationConstant.DATA_FORMAT_ADD_POSTFIX:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strField).append(" + \"").append(strFormatParam1)
+                        .append("\";").toString();
+                break;
+            case ESFilterOperationConstant.DATA_FORMAT_ADD_PREFIX:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName).append(" = \"")
+                        .append(strFormatParam1).append("\" + ").append(strField).append(";").toString();
+                break;
+            case ESFilterOperationConstant.DATA_REPLACE_REMOVE_CHAR:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
+                        .append("\", \"\");").toString();
+                break;
+            case ESFilterOperationConstant.DATA_REPLACE_REMOVE_WHITE_SPACE:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strField).append(".replaceAll(\"\\s+\", \"\");")
+                        .toString();
+                break;
+            case ESFilterOperationConstant.DATA_REPLACE_REPLACE_POS:
+                break;
+            case ESFilterOperationConstant.DATA_REPLACE_REPLACE_TEXT:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
+                        .append("\", \"").append(strFormatParam2).append("\");").toString();
+                break;
+        }
+
+        return strFormatScript;
+    }
+
     private Boolean formatData(String strIndex, String strType, String strField, String newFieldName,
                                String strFormatOperation, String strFormatParam1, String strFormatParam2) {
         Boolean bIsFormatted = false;
@@ -1533,44 +1793,7 @@ public class ElasticConnection {
         if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
             try {
                 if (objESClient != null) {
-                    String strFormatScript = "";
-
-                    switch (strFormatOperation) {
-                        case ESFilterOperationConstant.DATA_FORMAT_LOWERCASE:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strField).append(".toLowerCase();").toString();
-                            break;
-                        case ESFilterOperationConstant.DATA_FORMAT_UPPERCASE:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strField).append(".toUpperCase();").toString();
-                            break;
-                        case ESFilterOperationConstant.DATA_FORMAT_ADD_POSTFIX:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strField).append(" + \"").append(strFormatParam1)
-                                    .append("\";").toString();
-                            break;
-                        case ESFilterOperationConstant.DATA_FORMAT_ADD_PREFIX:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName).append(" = \"")
-                                    .append(strFormatParam1).append("\" + ").append(strField).append(";").toString();
-                            break;
-                        case ESFilterOperationConstant.DATA_REPLACE_REMOVE_CHAR:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
-                                    .append("\", \"\");").toString();
-                            break;
-                        case ESFilterOperationConstant.DATA_REPLACE_REMOVE_WHITE_SPACE:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strField).append(".replaceAll(\"\\s+\", \"\");")
-                                    .toString();
-                            break;
-                        case ESFilterOperationConstant.DATA_REPLACE_REPLACE_POS:
-                            break;
-                        case ESFilterOperationConstant.DATA_REPLACE_REPLACE_TEXT:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
-                                    .append("\", \"").append(strFormatParam2).append("\");").toString();
-                            break;
-                    }
+                    String strFormatScript = generateFormatDataScript(strField, newFieldName, strFormatOperation, strFormatParam1, strFormatParam2);
 
                     if (strFormatScript != null && !strFormatScript.isEmpty()) {
                         UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
@@ -1593,25 +1816,107 @@ public class ElasticConnection {
         return bIsFormatted;
     }
 
-    private String handleFields(String strIndex, String strType, List<String> lstRemoveField,
-                                HashMap<String, String> mapCopyField) {
-        String strNewNameIndex = "";
+    private Boolean handleFields(String strIndex, String strType, ESPrepFieldModel objPrepFieldModel) {
+        Boolean bIsFinish = true;
 
-        try {
-            if (objESClient != null) {
-                String strNewIndex = strIndex + "_" + Calendar.getInstance().getTimeInMillis();
-                Boolean bIsHandled = createIndexFromOtherIndex(strNewIndex, strType, strIndex, strType, lstRemoveField,
-                        mapCopyField);
+        //0. Create new field
+        if (objPrepFieldModel.getCopy_from_fields() != null && objPrepFieldModel.getCopy_to_fields() != null
+            && objPrepFieldModel.getCopy_from_fields().size() == objPrepFieldModel.getCopy_to_fields().size()) {
+            for (int intCount = 0; intCount < objPrepFieldModel.getCopy_from_fields().size(); intCount++) {
+                List<String> lstNewFieldInfo = getNewFieldFromAction(objPrepFieldModel,
+                        objPrepFieldModel.getCopy_from_fields().get(intCount),
+                        objPrepFieldModel.getCopy_to_fields().get(intCount));
 
-                if (bIsHandled) {
-                    strNewNameIndex = strNewIndex;
+                if (lstNewFieldInfo != null && lstNewFieldInfo.size() == 2) {
+                    Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
+                            = createNewMappingField(lstNewFieldInfo.get(1), lstNewFieldInfo.get(0));
+                    PutMappingResponse objPutMappingResponse = null;
+
+                    try {
+                        objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
+                                .setType(strType)
+                                .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
+                        try {
+                            bIsFinish = true;
+                        } catch (Exception objEx) {
+                            bIsFinish = false;
+                        }
+                    } else {
+                        bIsFinish = false;
+                    }
                 }
             }
-        } catch (Exception objEx) {
-            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
 
-        return strNewNameIndex;
+        if (bIsFinish) {
+            //1. Scroll all rows
+            Long lTimeValue = 60000l;
+
+            SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .setSize(intNumBulkOperation).get();
+
+            Long lCurNumHit = 0l;
+            Long lTotalHit = 0l;
+            do {
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    lTotalHit = objSearchResponse.getHits().getTotalHits();
+                    lCurNumHit += objSearchResponse.getHits().getHits().length;
+
+                    try {
+                        //2. With each scroll time, bulk update
+                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
+
+                        //2.1. Create Elastic Script that is related with current action
+                        List<String> lstScript = generateFieldPrepActionScript(objPrepFieldModel);
+
+                        if (lstScript != null && lstScript.size() > 0) {
+                            //2.2. Create Update Request and add to bulk processor
+                            for (int intCountScript = 0; intCountScript < lstScript.size(); intCountScript++) {
+                                String strScript = lstScript.get(intCountScript);
+
+                                for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                                    UpdateRequest objUpdateRequest = new UpdateRequest(strIndex, strType, objHit.getId());
+                                    objUpdateRequest.script(new Script(strScript));
+
+                                    objBulkProcessor.add(objUpdateRequest);
+                                }
+                            }
+                        }
+
+                        objBulkProcessor.flush();
+                        objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
+                    } catch (Exception objEx) {
+                        bIsFinish = false;
+                        objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+
+                        break;
+                    }
+
+                    objLogger.info("Cur Hit: " + lCurNumHit);
+                    objLogger.info("Total Hits: " + lTotalHit);
+
+                    //3. Continue to scroll
+                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(lTimeValue)).get();
+                } else {
+                    break;
+                }
+            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0);
+        }
+
+        //3. Return
+        return bIsFinish;
     }
 
     private Boolean handleDocuments(String strIndex, String strType, List<String> lstRemoveRowIdx,
@@ -1774,6 +2079,27 @@ public class ElasticConnection {
 
             return null;
         }
+    }
+
+    private SearchResponse searchESWithScan(String strIndex, String strType, Integer intPageSize) {
+        SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                .setSize(intPageSize).get();
+
+        do {
+            if (objSearchResponse != null && objSearchResponse.getHits() != null
+                    && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0) {
+            }
+
+            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                    .setScroll(new TimeValue(60000)).get();
+        } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                && objSearchResponse.getHits().getHits() != null
+                && objSearchResponse.getHits().getHits().length > 0);
+
+        return objSearchResponse;
     }
 
     @SuppressWarnings("unchecked")
@@ -2731,46 +3057,25 @@ public class ElasticConnection {
 
             if (objESClient != null && lstPrepOp != null && lstPrepOp.size() > 0) {
                 for (int intCount = 0; intCount < lstPrepOp.size(); intCount++) {
+                    ESPrepAbstractModel objPrepOp = lstPrepOp.get(intCount);
+                    String strCurIndex = getLatestIndexName(mapIndexMapping, objPrepOp.getIndex());
+
                     bIsPrepAll = false;
 
-                    if (lstPrepOp.get(intCount) instanceof ESPrepFieldModel) {
-                        ESPrepFieldModel objPrep = (ESPrepFieldModel) lstPrepOp.get(intCount);
+                    if (objPrepOp instanceof ESPrepFieldModel) {
+                        ESPrepFieldModel objPrep = (ESPrepFieldModel) objPrepOp;
 
                         if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
-                            HashMap<String, String> mapCopyField = new HashMap<>();
+                            bIsPrepAll = handleFields(strCurIndex, objPrep.getType(), objPrep);
 
-                            if (objPrep.getCopy_from_fields() != null && objPrep.getCopy_to_fields() != null
-                                    && objPrep.getCopy_to_fields().size() == objPrep.getCopy_from_fields().size()) {
-                                for (int intCountCopy = 0; intCountCopy < objPrep.getCopy_from_fields()
-                                        .size(); intCountCopy++) {
-                                    mapCopyField.put(objPrep.getCopy_from_fields().get(intCountCopy),
-                                            objPrep.getCopy_to_fields().get(intCountCopy));
-                                }
-                            }
-
-                            String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
-
-                            String strNewIndex = handleFields(strCurIndex, objPrep.getType(),
-                                    objPrep.getRemove_fields(), mapCopyField);
-
-                            if (strNewIndex != null && !strNewIndex.isEmpty()) {
-                                if (mapIndexMapping.containsKey(strCurIndex)) {
-                                    mapIndexMapping.remove(strCurIndex);
-                                    mapIndexMapping.put(strCurIndex, strNewIndex);
-                                } else {
-                                    mapIndexMapping.put(strCurIndex, strNewIndex);
-                                }
-
-                                bIsPrepAll = true;
-                            } else {
-                                bIsPrepAll = false;
+                            if (!bIsPrepAll) {
                                 break;
                             }
                         }
                     }
 
-                    if (lstPrepOp.get(intCount) instanceof ESPrepDocModel) {
-                        ESPrepDocModel objPrep = (ESPrepDocModel) lstPrepOp.get(intCount);
+                    if (objPrepOp instanceof ESPrepDocModel) {
+                        ESPrepDocModel objPrep = (ESPrepDocModel) objPrepOp;
 
                         if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
                             HashMap<String, Integer> mapNumTimeCopyDoc = new HashMap<>();
@@ -2784,7 +3089,6 @@ public class ElasticConnection {
                                 }
                             }
 
-                            String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
                             bIsPrepAll = handleDocuments(strCurIndex, objPrep.getType(), objPrep.getRemove_doc_ids(),
                                     mapNumTimeCopyDoc);
 
@@ -2794,51 +3098,12 @@ public class ElasticConnection {
                         }
                     }
 
-                    if (lstPrepOp.get(intCount) instanceof ESPrepFormatModel) {
-                        ESPrepFormatModel objPrep = (ESPrepFormatModel) lstPrepOp.get(intCount);
+                    if ((objPrepOp instanceof  ESPrepFormatModel) || (objPrepOp instanceof ESPrepDataTypeChangeModel)
+                            || (objPrepOp instanceof ESPrepFunctionArithmeticModel)) {
+                        bIsPrepAll = prepBulkAction(strCurIndex, objPrepOp.getType(), objPrepOp, intNumBulkOperation);
 
-                        if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
-                            String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
-
-                            bIsPrepAll = formatData(strCurIndex, objPrep.getType(),
-                                    objPrep.getField(), objPrep.getNew_field_name(),
-                                    objPrep.getFormat_op(), objPrep.getFormat_param_1(),
-                                    objPrep.getFormat_param_2());
-
-                            if (!bIsPrepAll) {
-                                break;
-                            }
-                        }
-                    }
-
-                    if (lstPrepOp.get(intCount) instanceof ESPrepDataTypeChangeModel) {
-                        ESPrepDataTypeChangeModel objPrep = (ESPrepDataTypeChangeModel) lstPrepOp.get(intCount);
-
-                        if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
-                            String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
-
-                            bIsPrepAll = changeFieldDataType(strCurIndex, objPrep.getType(),
-                                    objPrep.getField(), objPrep.getNew_field_name(),
-                                    objPrep.getConverted_data_type(), objPrep.getIs_forced(),
-                                    objPrep.getFailed_default_value(), objPrep.getDate_format());
-
-                            if (!bIsPrepAll) {
-                                break;
-                            }
-                        }
-                    }
-
-                    if (lstPrepOp.get(intCount) instanceof ESPrepFunctionArithmeticModel) {
-                        ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) lstPrepOp.get(intCount);
-
-                        if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
-                            String strCurIndex = getLatestIndexName(mapIndexMapping, objPrep.getIndex());
-
-                            bIsPrepAll = true;
-
-                            if (!bIsPrepAll) {
-                                break;
-                            }
+                        if (!bIsPrepAll) {
+                            break;
                         }
                     }
                 }
