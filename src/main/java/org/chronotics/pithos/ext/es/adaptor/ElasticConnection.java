@@ -240,7 +240,7 @@ public class ElasticConnection {
                                     }
                                 }
 
-                                if (objFieldModel.getType() != null && !objFieldModel.getType().equals("text")) {
+                                if (!objFieldModel.getFull_name().equals("cos_x_pos") && objFieldModel.getType() != null && !objFieldModel.getType().equals("text")) {
                                     lstESField.add(objFieldModel);
                                 }
                             }
