@@ -30,10 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.MatchAllQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.index.query.*;
 import org.elasticsearch.index.reindex.*;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
@@ -1126,6 +1123,16 @@ public class ElasticConnection {
 
                 MatrixStatsAggregationBuilder objMatrixStatBuilder = MatrixStatsAggregationBuilders.matrixStats(strStatName).fields(lstStatFields);
                 objSearchRequestBuilder.addAggregation(objMatrixStatBuilder);
+
+                BoolQueryBuilder objBooleanQueryBuilder = new BoolQueryBuilder();
+
+                for (int intCount = 0; intCount < lstStatFields.size(); intCount++) {
+                    ExistsQueryBuilder objExistQueryBuilder = new ExistsQueryBuilder(lstStatFields.get(intCount));
+                    objBooleanQueryBuilder.must(objExistQueryBuilder);
+                }
+
+                objSearchRequestBuilder.setQuery(objBooleanQueryBuilder);
+
                 SearchResponse objSearchResponse = objSearchRequestBuilder.get();
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
@@ -1157,10 +1164,6 @@ public class ElasticConnection {
 
                                 for (int intCountField = 0; intCountField < lstStatFields.size(); intCountField++) {
                                     String strCurFieldCorr = lstStatFields.get(intCountField);
-
-                                    objLogger.info("strCurFieldCorr: " + strCurFieldCorr);
-                                    objLogger.info("corr: " + objStat.getCorrelation(strCurField, strCurFieldCorr));
-                                    objLogger.info("cov: " + objStat.getCovariance(strCurField, strCurFieldCorr));
 
                                     Boolean bCanAdd = false;
 
@@ -1636,98 +1639,6 @@ public class ElasticConnection {
         return strPainlessScript;
     }
 
-    private Boolean changeFieldDataType(String strIndex, String strType, String strField,
-                                        String newFieldName, String strConvertedDataType,
-                                        Boolean bIsForce, String strFailedDefaultValue, String strDateFormat) {
-        Boolean bIsChanged = false;
-        String strNewField = newFieldName;
-
-        try {
-            if (objESClient != null && lstConvertedDataType.contains(strConvertedDataType)) {
-                List<ESFieldModel> lstField = getFieldsMetaData(strIndex, strType,
-                        new ArrayList<>(Arrays.asList(strField)));
-                if (lstField != null && lstField.size() > 0) {
-                    // 1. Create New Field
-                    Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties = createNewMappingField(strConvertedDataType, strNewField);
-                    PutMappingResponse objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
-                            .setType(strType)
-                            .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
-
-                    if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
-                        // 2. Copy and convert data to new field
-                        String strPainlessScript = generateChangeFieldDataTypeScript(strField, strNewField, strConvertedDataType, bIsForce, strFailedDefaultValue, strDateFormat);
-
-                        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
-                                .newRequestBuilder(objESClient);
-                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(
-                                new Script(ScriptType.INLINE, "painless", strPainlessScript, Collections.emptyMap()));
-
-                        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-
-                        // TODO dont need it anymore. We keep both old field, and new field (the new field name should be got from param)
-//                        if (objRespone != null
-//                                && (objRespone.getStatus().equals(BulkByScrollTask.Status.INCLUDE_UPDATED)
-//                                || objRespone.getStatus().equals(BulkByScrollTask.Status.INCLUDE_CREATED))) {
-//                            // 3. Remove old field with update_by_query
-//                            String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
-//                            objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-//                            objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(
-//                                    new Script(ScriptType.INLINE, "painless", strRemoveScript, Collections.emptyMap()));
-//
-//                            objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-//
-//                            if (objRespone != null) {
-//                                // 4. Create old field again with new data type
-//                                mapFieldProperties = new HashMap<>();
-//                                mapFieldMapping = new HashMap<>();
-//
-//                                objMappingField = createMappingField(strConvertedDataType,
-//                                        strConvertedDataType.equals(ESFilterOperationConstant.DATA_TYPE_DATE) ? true
-//                                                : false);
-//                                mapFieldMapping.put(strField, objMappingField);
-//                                mapFieldProperties.put("properties", mapFieldMapping);
-//
-//                                objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
-//                                        .setType(strType)
-//                                        .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON)
-//                                        .get();
-//                                if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
-//                                    // 5. Update data from new field back to old field
-//                                    String strCopyScript = "ctx._source." + strField + " = ctx._source." + strNewField;
-//                                    objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-//                                    objUpdateByQuery.source(strIndex).abortOnVersionConflict(false).script(new Script(
-//                                            ScriptType.INLINE, "painless", strCopyScript, Collections.emptyMap()));
-//
-//                                    objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-//
-//                                    if (objRespone != null) {
-//                                        // 6. Delete new field
-//                                        strRemoveScript = "ctx._source.remove(\"" + strNewField + "\")";
-//                                        objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-//                                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
-//                                                .script(new Script(ScriptType.INLINE, "painless", strRemoveScript,
-//                                                        Collections.emptyMap()));
-//
-//                                        objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-//
-//                                        if (objRespone != null) {
-//                                            bIsChanged = true;
-//                                        }
-//                                    }
-//                                }
-//                            }
-//                        }
-
-                    }
-                }
-            }
-        } catch (Exception objEx) {
-            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-        }
-
-        return bIsChanged;
-    }
-
     private String generateFormatDataScript(String strField, String newFieldName,
                                             String strFormatOperation, String strFormatParam1, String strFormatParam2) {
         String strFormatScript = "";
@@ -1770,47 +1681,6 @@ public class ElasticConnection {
         }
 
         return strFormatScript;
-    }
-
-    private Boolean formatData(String strIndex, String strType, String strField, String newFieldName,
-                               String strFormatOperation, String strFormatParam1, String strFormatParam2) {
-        Boolean bIsFormatted = false;
-        // TODO Create new field with newFieldName
-        Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
-                = createNewMappingField(ESFilterOperationConstant.DATA_TYPE_TEXT, newFieldName);
-        PutMappingResponse objPutMappingResponse = null;
-        try {
-            objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
-                    .setType(strType)
-                    .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-        if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
-            try {
-                if (objESClient != null) {
-                    String strFormatScript = generateFormatDataScript(strField, newFieldName, strFormatOperation, strFormatParam1, strFormatParam2);
-
-                    if (strFormatScript != null && !strFormatScript.isEmpty()) {
-                        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
-                                .newRequestBuilder(objESClient);
-                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
-                                .script(new Script(ScriptType.INLINE, "painless", strFormatScript, Collections.emptyMap()));
-
-                        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-
-                        if (objRespone != null) {
-                            bIsFormatted = true;
-                        }
-                    }
-                }
-            } catch (Exception objEx) {
-                objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-            }
-        }
-
-        return bIsFormatted;
     }
 
     private Boolean handleFields(String strIndex, String strType, ESPrepFieldModel objPrepFieldModel) {
