@@ -163,7 +163,7 @@ public class ElasticConnection {
 
             @Override
             public void afterBulk(long l, BulkRequest bulkRequest, BulkResponse bulkResponse) {
-                objLogger.error("INFO: After Bulk - " + String.valueOf(l) + " - "
+                objLogger.info("INFO: After Bulk - " + String.valueOf(l) + " - "
                         + bulkRequest.numberOfActions());
             }
 
@@ -242,7 +242,7 @@ public class ElasticConnection {
                                     }
                                 }
 
-                                if (!objFieldModel.getType().equals("text")) {
+                                if (objFieldModel.getType() != null && !objFieldModel.getType().equals("text")) {
                                     lstESField.add(objFieldModel);
                                 }
                             }
@@ -1121,7 +1121,7 @@ public class ElasticConnection {
             }
 
             if (objESClient != null && lstStatFields != null && lstStatFields.size() > 0) {
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType).;
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
                 objSearchRequestBuilder.setSource(objSearchSourceBuilder);
@@ -1129,7 +1129,7 @@ public class ElasticConnection {
                 MatrixStatsAggregationBuilder objMatrixStatBuilder = MatrixStatsAggregationBuilders.matrixStats(strStatName).fields(lstStatFields);
                 objSearchRequestBuilder.addAggregation(objMatrixStatBuilder);
 
-                SearchResponse objSearchResponse = objSearchRequestBuilder.get();
+                SearchResponse objSearchResponse = objSearchRequestBuilder.();
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                         && objSearchResponse.getAggregations() != null) {
