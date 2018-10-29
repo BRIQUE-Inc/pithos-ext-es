@@ -1166,7 +1166,7 @@ public class ElasticConnection {
 
                                     switch (intFilterType) {
                                         case ESFilterOperationConstant.CORRELATION:
-                                            if (dbCustomValue == null || (dbCustomValue > 0 && objStat.getCorrelation(strCurField, strCurFieldCorr) >= dbCustomValue)) {
+                                            if (dbCustomValue == null || (objStat.getCorrelation(strCurField, strCurFieldCorr) >= dbCustomValue)) {
                                                 lstCorr.add(objStat.getCorrelation(strCurField, strCurFieldCorr));
                                                 lstCov.add(objStat.getCovariance(strCurField, strCurFieldCorr));
 
@@ -1175,7 +1175,7 @@ public class ElasticConnection {
 
                                             break;
                                         case ESFilterOperationConstant.COVARIANCE:
-                                            if (dbCustomValue == null || (dbCustomValue > 0 && objStat.getCovariance(strCurField, strCurFieldCorr) >= dbCustomValue)) {
+                                            if (dbCustomValue == null || (objStat.getCovariance(strCurField, strCurFieldCorr) >= dbCustomValue)) {
                                                 lstCorr.add(objStat.getCorrelation(strCurField, strCurFieldCorr));
                                                 lstCov.add(objStat.getCovariance(strCurField, strCurFieldCorr));
 
