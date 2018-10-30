@@ -194,6 +194,7 @@ public class ESPrepActionConverterUtil {
         if (objRequest.getData_values() != null && objRequest.getData_values().size() > 0) {
             switch (objRequest.getAction_id()) {
                 case ESFilterOperationConstant.PREP_OP_FIELD_REMOVE:
+                    // TODO CHECK!!! data_values is an array. It will work or not
                     objPrepField.setRemove_fields(objRequest.getData_values());
                     break;
             }
