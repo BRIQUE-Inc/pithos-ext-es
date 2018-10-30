@@ -3030,25 +3030,42 @@ public class ElasticConnection {
 //        }
 //        return false;
 //
-        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
+        Long lTimeValue = 60000l;
         SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000l))
+                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
                 .setSize(intNumBulkOperation).get();
+        do {
+            if (objSearchResponse != null && objSearchResponse.getHits() != null
+                    && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0) {
 
-        for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
-            UpdateRequest objUpdateRequest = new UpdateRequest(strIndex, strType, objHit.getId());
-            objUpdateRequest.script(new Script(strRemoveScript));
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
 
-            objBulkProcessor.add(objUpdateRequest);
-        }
+                for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                    UpdateRequest objUpdateRequest = new UpdateRequest(strIndex, strType, objHit.getId());
+                    objUpdateRequest.script(new Script(strRemoveScript));
 
-        objBulkProcessor.flush();
-        try {
-            objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-           objLogger.error("Cannot delete field ({}) of index ({}). Error: {}", strField, strIndex, e.getMessage());
-           return false;
-        }
+                    objBulkProcessor.add(objUpdateRequest);
+                }
+
+                objBulkProcessor.flush();
+                try {
+                    objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
+                } catch (InterruptedException e) {
+                    objLogger.error("Cannot delete field ({}) of index ({}). Error: {}", strField, strIndex, e.getMessage());
+                    return false;
+                }
+
+                objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                        .setScroll(new TimeValue(lTimeValue)).get();
+            } else {
+                break;
+            }
+        } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                && objSearchResponse.getHits().getHits() != null
+                && objSearchResponse.getHits().getHits().length > 0);
+
         return true;
     }
 }
