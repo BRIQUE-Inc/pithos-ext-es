@@ -125,6 +125,16 @@ public class ElasticConnection {
         return objESClient;
     }
 
+    public void closeInstance() {
+        try {
+            if (objESClient != null) {
+                objESClient.close();
+            }
+        } catch (Exception objEx) {
+            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+    }
+
     private List<Object> createESAdminClient() {
         List<Object> lstClient = new ArrayList<>();
 
