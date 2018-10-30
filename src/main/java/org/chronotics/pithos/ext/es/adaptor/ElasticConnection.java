@@ -237,6 +237,7 @@ public class ElasticConnection {
                                     }
                                 }
 
+                                // TODO fix bug here!
                                 if (!objFieldModel.getFull_name().equals("cos_x_pos") && objFieldModel.getType() != null && !objFieldModel.getType().equals("text")) {
                                     lstESField.add(objFieldModel);
                                 }
@@ -1467,11 +1468,43 @@ public class ElasticConnection {
             ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) objPrepAction;
 
             if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
-                strScript = "";
+                strScript = generateArithmeticFunctionScript(objPrep.getField(), objPrep.getNew_field_name(),
+                        objPrep.getArithmetic_op(), objPrep.getArithmetic_param_1(), objPrep.getArithmetic_param_2());
             }
         }
 
         return strScript;
+    }
+
+    private String generateArithmeticFunctionScript(String strField, String newFieldName,
+                                                    String strArithmeticOperation, String strArithmeticParam1, String strArithmeticParam2) {
+        String strFormatScript = "";
+
+        // TODO for unary operation, the calculation is based on the strField, and newFieldName
+        switch (strArithmeticOperation) {
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_ADD:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strArithmeticParam1)
+                        .append(" + ctx._source.").append(strArithmeticParam2).toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_SUB:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strArithmeticParam1)
+                        .append(" - ctx._source.").append(strArithmeticParam2).toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_MULTIPLY:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strArithmeticParam1)
+                        .append(" * ctx._source.").append(strArithmeticParam2).toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = ctx._source.").append(strArithmeticParam1)
+                        .append(" / ctx._source.").append(strArithmeticParam2).toString();
+                break;
+        }
+
+        return strFormatScript;
     }
 
     private List<String> getNewFieldFromAction(ESPrepAbstractModel objPrepAction, String strOldField, String strNewField) {
@@ -1506,10 +1539,11 @@ public class ElasticConnection {
             ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) objPrepAction;
 
             strNewFieldName = objPrep.getNew_field_name();
-            List<ESFieldModel> lstField = getFieldsMetaData(objPrep.getIndex(), objPrep.getType(),
-                    new ArrayList<>(Arrays.asList(objPrep.getField())));
-
-            strNewFieldType = lstField.get(0).getType();
+//            List<ESFieldModel> lstField = getFieldsMetaData(objPrep.getIndex(), objPrep.getType(),
+//                    new ArrayList<>(Arrays.asList(objPrep.getField())));
+//
+//            strNewFieldType = lstField.get(0).getType();
+            strNewFieldType = "double";
         }
 
         List<String> lstNewField = new ArrayList<>();
@@ -2965,7 +2999,8 @@ public class ElasticConnection {
                         }
                     }
 
-                    if ((objPrepOp instanceof  ESPrepFormatModel) || (objPrepOp instanceof ESPrepDataTypeChangeModel)
+                    if ((objPrepOp instanceof  ESPrepFormatModel)
+                            || (objPrepOp instanceof ESPrepDataTypeChangeModel)
                             || (objPrepOp instanceof ESPrepFunctionArithmeticModel)) {
                         bIsPrepAll = prepBulkAction(strCurIndex, objPrepOp.getType(), objPrepOp, intNumBulkOperation);
 
@@ -2982,81 +3017,38 @@ public class ElasticConnection {
         return bIsPrepAll;
     }
 
-    private Boolean calculateArithmeticFunction(String strIndex, String strType, String strField, String newFieldName,
-                                                String strArithmeticOperation, String strArithmeticParam1, String strArithmeticParam2) {
-        Boolean bIsFormatted = false;
-        Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
-                = createNewMappingField(ESFilterOperationConstant.DATA_TYPE_NUMERIC, newFieldName);
-        PutMappingResponse objPutMappingResponse = null;
-        try {
-            objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
-                    .setType(strType)
-                    .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-        // TODO strField is used for unary expression (sin, cos, tan)
-        if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
-            try {
-                if (objESClient != null) {
-                    String strFormatScript = "";
-
-                    switch (strArithmeticOperation) {
-                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_ADD:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strArithmeticParam1)
-                                    .append(" + ctx._source.").append(strArithmeticParam2).toString();
-                            break;
-                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_SUB:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strArithmeticParam1)
-                                    .append(" - ctx._source.").append(strArithmeticParam2).toString();
-                            break;
-                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_MULTIPLY:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strArithmeticParam1)
-                                    .append(" * ctx._source.").append(strArithmeticParam2).toString();
-                            break;
-                        case ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE:
-                            strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                                    .append(" = ctx._source.").append(strArithmeticParam1)
-                                    .append(" / ctx._source.").append(strArithmeticParam2).toString();
-                            break;
-                    }
-
-                    if (strFormatScript != null && !strFormatScript.isEmpty()) {
-                        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE
-                                .newRequestBuilder(objESClient);
-                        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
-                                .script(new Script(ScriptType.INLINE, "painless", strFormatScript, Collections.emptyMap()));
-
-                        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
-
-                        if (objRespone != null) {
-                            bIsFormatted = true;
-                        }
-                    }
-                }
-            } catch (Exception objEx) {
-                objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-            }
-        }
-        return bIsFormatted;
-    }
-
-    public Boolean deleteField(String strIndex, String strField) {
+    public Boolean deleteField(String strIndex, String strType, String strField) {
         String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
-        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
-        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
-                .script(new Script(ScriptType.INLINE, "painless", strRemoveScript,
-                        Collections.emptyMap()));
+//        UpdateByQueryRequestBuilder objUpdateByQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(objESClient);
+//        objUpdateByQuery.source(strIndex).abortOnVersionConflict(false)
+//                .script(new Script(ScriptType.INLINE, "painless", strRemoveScript,
+//                        Collections.emptyMap()));
+//
+//        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+//        if (objRespone != null) {
+//            return true;
+//        }
+//        return false;
+//
+        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
+        SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000l))
+                .setSize(intNumBulkOperation).get();
 
-        BulkByScrollResponse objRespone = objUpdateByQuery.get(TimeValue.timeValueMinutes(10));
+        for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+            UpdateRequest objUpdateRequest = new UpdateRequest(strIndex, strType, objHit.getId());
+            objUpdateRequest.script(new Script(strRemoveScript));
 
-        if (objRespone != null) {
-            return true;
+            objBulkProcessor.add(objUpdateRequest);
         }
-        return false;
+
+        objBulkProcessor.flush();
+        try {
+            objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+           objLogger.error("Cannot delete field ({}) of index ({}). Error: {}", strField, strIndex, e.getMessage());
+           return false;
+        }
+        return true;
     }
 }

@@ -1,6 +1,7 @@
 package org.chronotics.pithos.ext.es.util;
 
 import org.chronotics.pithos.ext.es.model.*;
+import org.elasticsearch.common.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,7 +16,8 @@ public class ESPrepActionConverterUtil {
         List<ESPrepAbstractModel> lstESPrepAbstractModel = new ArrayList<>();
 
         if (objAllRequest != null && objAllRequest.getActions() != null && objAllRequest.getActions().size() > 0) {
-            List<ESPrepActionRequestModel> lstAllActions = objAllRequest.getActions().stream().sorted(Comparator.comparing(ESPrepActionRequestModel::getAction_idx)).collect(Collectors.toList());
+            List<ESPrepActionRequestModel> lstAllActions = objAllRequest.getActions().stream()
+                    .sorted(Comparator.comparing(ESPrepActionRequestModel::getAction_idx)).collect(Collectors.toList());
 
             for (ESPrepActionRequestModel objRequest : lstAllActions) {
                 ESPrepAbstractModel objPrepAction = null;
@@ -36,6 +38,9 @@ public class ESPrepActionConverterUtil {
                     case ESFilterOperationConstant.PREP_OP_TYPE_DATA_REPLACE:
                         objPrepAction = convertToDataFormatType(objRequest);
                         break;
+                    case ESFilterOperationConstant.PREP_OP_TYPE_FUNCTION:
+                        objPrepAction = convertToFunctionArithmeticModel(objRequest);
+                        break;
                 }
 
                 if (objPrepAction != null) {
@@ -48,6 +53,20 @@ public class ESPrepActionConverterUtil {
         }
 
         return lstESPrepAbstractModel;
+    }
+
+    private static ESPrepFunctionArithmeticModel convertToFunctionArithmeticModel(ESPrepActionRequestModel objRequest) {
+        ESPrepFunctionArithmeticModel objPrepModel = new ESPrepFunctionArithmeticModel();
+        objPrepModel.setArithmetic_op(objRequest.getAction_id());
+        if (objRequest.getData_values() != null && objRequest.getData_values().size() > 0) {
+            objPrepModel.setField(objRequest.getData_values().get(0));
+            objPrepModel.setArithmetic_param_1(objRequest.getData_values().get(0));
+        }
+        if (objRequest.getData_values() != null && objRequest.getData_values().size() > 1) {
+            objPrepModel.setArithmetic_param_2(objRequest.getData_values().get(1));
+        }
+        objPrepModel.setNew_field_name(objRequest.getNew_field_name());
+        return objPrepModel;
     }
 
     private static List<String> getBasicInfoFromRequest(ESPrepActionRequestModel objRequest) {
