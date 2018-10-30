@@ -69,25 +69,30 @@ public class ESFilterOperationConstant {
     public static final String FUNCTION_ARITHMETIC_SUB = "Subtract";
     public static final String FUNCTION_ARITHMETIC_MULTIPLY = "Multiply";
     public static final String FUNCTION_ARITHMETIC_DIVIDE = "Divide";
+    public static final String FUNCTION_ARITHMETIC_SIN = "Sin";
+    public static final String FUNCTION_ARITHMETIC_COS = "Cos";
+    public static final String FUNCTION_ARITHMETIC_TAN = "Tan";
+    public static final String FUNCTION_ARITHMETIC_LOG = "Log";
+    public static final String FUNCTION_ARITHMETIC_LOG10 = "Log10";
 
     public static final String FUNCTION_STATISTICS_COUNT = "Count";
-    public static final String FUNCTION_STATISTICS_MEAN = "Count";
-    public static final String FUNCTION_STATISTICS_MEDIAN = "Count";
-    public static final String FUNCTION_STATISTICS_MIN = "Count";
-    public static final String FUNCTION_STATISTICS_MAX = "Count";
-    public static final String FUNCTION_STATISTICS_SUM = "Count";
-    public static final String FUNCTION_STATISTICS_VARIANCE = "Count";
-    public static final String FUNCTION_STATISTICS_QUANTILE = "Count";
-    public static final String FUNCTION_STATISTICS_FIRST = "Count";
-    public static final String FUNCTION_STATISTICS_LAST = "Count";
-    public static final String FUNCTION_STATISTICS_RANGE = "Count";
+    public static final String FUNCTION_STATISTICS_MEAN = "Mean";
+    public static final String FUNCTION_STATISTICS_MEDIAN = "Median";
+    public static final String FUNCTION_STATISTICS_MIN = "Min";
+    public static final String FUNCTION_STATISTICS_MAX = "Max";
+    public static final String FUNCTION_STATISTICS_SUM = "Sum";
+    public static final String FUNCTION_STATISTICS_VARIANCE = "Variance";
+    public static final String FUNCTION_STATISTICS_QUANTILE = "Quantile";
+    public static final String FUNCTION_STATISTICS_FIRST = "First";
+    public static final String FUNCTION_STATISTICS_LAST = "Last";
+    public static final String FUNCTION_STATISTICS_RANGE = "Range";
 
-    public static final String FUNCTION_TRANSFORM_LAPLACE = "Count";
-    public static final String FUNCTION_TRANSFORM_FOURIER = "Count";
-    public static final String FUNCTION_TRANSFORM_WAVELET = "Count";
-    public static final String FUNCTION_TRANSFORM_Z = "Count";
+    public static final String FUNCTION_TRANSFORM_LAPLACE = "Laplace";
+    public static final String FUNCTION_TRANSFORM_FOURIER = "Fourier";
+    public static final String FUNCTION_TRANSFORM_WAVELET = "Wavelet";
+    public static final String FUNCTION_TRANSFORM_Z = "Z";
 
-    public static final String FUNCTION_CONVERT_TIMESERIES = "Count";
+    public static final String FUNCTION_CONVERT_TIMESERIES = "Timeseries";
 
-    public static final String FUNCTION_SAMPLING = "Count";
+    public static final String FUNCTION_SAMPLING = "Sampling";
 }

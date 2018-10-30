@@ -31,11 +31,14 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.*;
-import org.elasticsearch.index.reindex.*;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.ReindexAction;
+import org.elasticsearch.index.reindex.ReindexRequestBuilder;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.*;
+import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
 import org.elasticsearch.search.aggregations.bucket.histogram.InternalHistogram;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.matrix.MatrixAggregationPlugin;
@@ -202,6 +205,7 @@ public class ElasticConnection {
                             .getValue().entrySet()) {
                         String strCurType = curType.getKey();
                         List<ESFieldModel> lstESField = new ArrayList<>();
+                        lstField = new ArrayList<>();
 
                         for (Map.Entry<String, GetFieldMappingsResponse.FieldMappingMetaData> curField : curType
                                 .getValue().entrySet()) {
@@ -213,6 +217,7 @@ public class ElasticConnection {
                                     && !curField.getKey().equals("_id") && !curField.getKey().equals("_uid")) {
                                 ESFieldModel objFieldModel = new ESFieldModel();
                                 objFieldModel.setFull_name(curField.getValue().fullName());
+                                lstField.add(curField.getValue().fullName());
 
                                 Map<String, Object> mapProperty = curField.getValue().sourceAsMap();
 
@@ -237,14 +242,21 @@ public class ElasticConnection {
                                     }
                                 }
 
-                                // TODO fix bug here!
-                                if (!objFieldModel.getFull_name().equals("cos_x_pos") && objFieldModel.getType() != null && !objFieldModel.getType().equals("text")) {
+                                if (objFieldModel.getType() != null && !objFieldModel.getType().equals("text")) {
                                     lstESField.add(objFieldModel);
                                 }
                             }
                         }
 
-                        mapType.put(strCurType, lstESField);
+                        // Make sure the list of Fields doesnt contain any empty field
+                        List<String> notNullField = getNotNullField(strCurIndex, strCurType, lstField);
+                        List<ESFieldModel> lstNotNullESField = new ArrayList<>();
+                        for (ESFieldModel fd : lstESField) {
+                            if (notNullField.contains(fd.getFull_name())) {
+                                lstNotNullESField.add(fd);
+                            }
+                        }
+                        mapType.put(strCurType, lstNotNullESField);
                     }
 
                     mapFields.put(strCurIndex, mapType);
@@ -1502,6 +1514,26 @@ public class ElasticConnection {
                         .append(" = ctx._source.").append(strArithmeticParam1)
                         .append(" / ctx._source.").append(strArithmeticParam2).toString();
                 break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_SIN:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = Math.sin(ctx._source.").append(strField).append(")").toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_COS:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = Math.cos(ctx._source.").append(strField).append(")").toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_TAN:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = Math.tan(ctx._source.").append(strField).append(")").toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = Math.log(ctx._source.").append(strField).append(")").toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10:
+                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
+                        .append(" = Math.log10(ctx._source.").append(strField).append(")").toString();
+                break;
         }
 
         return strFormatScript;
@@ -1646,6 +1678,49 @@ public class ElasticConnection {
 
         //3. Return
         return bIsFinish;
+    }
+
+    private List<String> getNotNullField(String strIndex, String strType, List<String> lstField) {
+        List<String> lstNotNullField = new ArrayList<>();
+
+        try {
+            if (objESClient != null) {
+                SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
+                objSourceBuilder.size(0);
+                objRequestBuilder.setSource(objSourceBuilder);
+
+                for (String strField: lstField) {
+                    objRequestBuilder.addAggregation(AggregationBuilders.filter(strField + "_null", QueryBuilders.existsQuery(strField)));
+                }
+
+                SearchResponse objNullResponse = objRequestBuilder.get();
+
+                if (objNullResponse != null && objNullResponse.getHits() != null
+                        && objNullResponse.getHits().getTotalHits() > 0
+                        && objNullResponse.getAggregations() != null) {
+                    Long lTotalHit = objNullResponse.getHits().getTotalHits();
+                    List<Aggregation> lstNullAggs = objNullResponse.getAggregations().asList();
+
+                    for (int intCount = 0; intCount < lstNullAggs.size(); intCount++) {
+                        String strCurFieldName = lstNullAggs.get(intCount).getName().replace("_null", "");
+
+                        if (lstNullAggs.get(intCount).getName().contains("_null")) {
+                            //Long lTotalDoc = ((InternalValueCount) lstNullAggs.get(intCount)).getValue();
+                            Long lTotalDoc = ((InternalFilter) lstNullAggs.get(intCount)).getDocCount();
+
+                            if (lTotalHit - lTotalDoc < 20) {
+                                lstNotNullField.add(strCurFieldName);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.error("");
+        }
+
+        return lstNotNullField;
     }
 
     private String generateChangeFieldDataTypeScript(String strField,
@@ -2159,7 +2234,7 @@ public class ElasticConnection {
 
                             objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
                                     .setSettings(Settings.builder()
-                                            .put("index.mapping.total_fields.limit", mapMappingField.size() * 2)
+                                            .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
                                             .put("index.max_result_window", 1000000000))
                                     .get();
 
