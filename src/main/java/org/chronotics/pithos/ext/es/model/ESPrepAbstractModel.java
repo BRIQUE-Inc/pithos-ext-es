@@ -3,6 +3,7 @@ package org.chronotics.pithos.ext.es.model;
 public abstract class ESPrepAbstractModel {
     String index;
     String type;
+    String id;
 
     public String getIndex() {
         return index;
@@ -18,5 +19,13 @@ public abstract class ESPrepAbstractModel {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 }
