@@ -2,6 +2,7 @@ package org.chronotics.pithos.ext.es.adaptor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import joptsimple.internal.Strings;
 import org.chronotics.pithos.ext.es.log.Logger;
 import org.chronotics.pithos.ext.es.log.LoggerFactory;
 import org.chronotics.pithos.ext.es.model.*;
@@ -12,6 +13,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRespon
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -2028,7 +2030,7 @@ public class ElasticConnection {
         return strLatestIndexName;
     }
 
-    private Boolean deleteIndex(String strIndex) {
+    public Boolean deleteIndex(String strIndex) {
         Boolean bIsDeleted = false;
 
         try {
@@ -2113,6 +2115,8 @@ public class ElasticConnection {
 
                             lstHeader = lstHeader.stream().map(str -> str.toString().replace("+", ".")).collect(Collectors.toList());
                             CSVUtil.writeLine(objFileWriter, lstHeader);
+
+                            objLogger.info("INFO: " + Arrays.toString(lstHeader.toArray()));
                         }
 
                         List<Object> lstValue = Arrays
@@ -3004,6 +3008,16 @@ public class ElasticConnection {
         }
     }
 
+    private void refreshIndex(String strIndex) {
+        try {
+            if (objESClient != null) {
+                objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
+            }
+        } catch (Exception objEx) {
+            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+    }
+
     public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize) {
         Boolean bIsExported = true;
 
@@ -3023,6 +3037,9 @@ public class ElasticConnection {
                 new File(strFileName).createNewFile();
 
                 FileWriter objFileWriter = new FileWriter(strFileName, true);
+
+                //Refresh index before export
+                refreshIndex(strIndex);
 
                 SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                         .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
