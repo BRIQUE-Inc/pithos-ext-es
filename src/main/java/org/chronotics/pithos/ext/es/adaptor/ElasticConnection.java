@@ -2183,6 +2183,7 @@ public class ElasticConnection {
 
                         for (Map.Entry<String, Object> curItem : objJSONData.entrySet()) {
                             String strFieldType = "";
+                            String strFieldName = curItem.getKey().replace(".", "_");
 
                             if (lstData.get(0) instanceof HashMap) {
                                 Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
@@ -2228,7 +2229,7 @@ public class ElasticConnection {
                             }
 
                             if (objMappingField.getType() != null) {
-                                mapMappingField.put(curItem.getKey().toLowerCase(), objMappingField);
+                                mapMappingField.put(strFieldName, objMappingField);
                             }
                         }
                     }
@@ -2297,8 +2298,28 @@ public class ElasticConnection {
 
                 if (objBulkProcessor != null) {
                     for (int intCount = 0; intCount < lstData.size(); intCount++) {
-                        objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                .source(objMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                        Object objData = lstData.get(intCount);
+
+                        if (objData instanceof HashMap) {
+                            HashMap<String, Object> mapOriginal = (HashMap<String, Object>)objData;
+
+                            if (mapOriginal.entrySet().stream().filter(item -> item.getKey().contains(".")).count() > 0) {
+                                HashMap<String, Object> mapNew = new HashMap<>();
+
+                                for (Map.Entry<String, Object> item : mapOriginal.entrySet()) {
+                                    mapNew.put(item.getKey().replace(".", "_"), item.getValue());
+                                }
+
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
+                                        .source(objMapper.writeValueAsString(mapNew), XContentType.JSON));
+                            } else {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
+                                        .source(objMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                            }
+                        } else {
+                            objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
+                                    .source(objMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                        }
                     }
 
                     objBulkProcessor.flush();
