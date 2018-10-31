@@ -1442,8 +1442,11 @@ public class ElasticConnection {
                 //Generate remove script field
                 if (objPrep.getRemove_fields() != null && objPrep.getRemove_fields().size() > 0) {
                     for (String strField: objPrep.getRemove_fields()) {
-                        String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
-                        lstScript.add(strRemoveScript);
+                        String[] multipleFields = strField.split(",");
+                        for (int i=0; i < multipleFields.length; i++) {
+                            String strRemoveScript = "ctx._source.remove(\"" + multipleFields[i] + "\")";
+                            lstScript.add(strRemoveScript);
+                        }
                     }
                 }
 
@@ -1719,7 +1722,8 @@ public class ElasticConnection {
                             //Long lTotalDoc = ((InternalValueCount) lstNullAggs.get(intCount)).getValue();
                             Long lTotalDoc = ((InternalFilter) lstNullAggs.get(intCount)).getDocCount();
 
-                            if (lTotalHit - lTotalDoc < 20) {
+                            if (lTotalHit.doubleValue() / lTotalDoc.doubleValue() < 1.1
+                                    && lTotalHit.doubleValue() / lTotalDoc.doubleValue() > 0.9) {
                                 lstNotNullField.add(strCurFieldName);
                             }
                         }
@@ -1727,7 +1731,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.error("");
+            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
 
         return lstNotNullField;
