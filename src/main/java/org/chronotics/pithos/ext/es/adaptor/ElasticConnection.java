@@ -2110,6 +2110,8 @@ public class ElasticConnection {
                         if (intCount == 0 && bIsIncludeHeader) {
                             List<Object> lstHeader = Arrays
                                     .asList(mapSource.keySet().toArray(new Object[mapSource.keySet().size()]));
+
+                            lstHeader = lstHeader.stream().map(str -> str.toString().replace("+", ".")).collect(Collectors.toList());
                             CSVUtil.writeLine(objFileWriter, lstHeader);
                         }
 
@@ -2183,7 +2185,7 @@ public class ElasticConnection {
 
                         for (Map.Entry<String, Object> curItem : objJSONData.entrySet()) {
                             String strFieldType = "";
-                            String strFieldName = curItem.getKey().replace(".", "_");
+                            String strFieldName = curItem.getKey().replace(".", "+");
 
                             if (lstData.get(0) instanceof HashMap) {
                                 Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
@@ -2307,7 +2309,7 @@ public class ElasticConnection {
                                 HashMap<String, Object> mapNew = new HashMap<>();
 
                                 for (Map.Entry<String, Object> item : mapOriginal.entrySet()) {
-                                    mapNew.put(item.getKey().replace(".", "_"), item.getValue());
+                                    mapNew.put(item.getKey().replace(".", "+"), item.getValue());
                                 }
 
                                 objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
