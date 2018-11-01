@@ -1446,7 +1446,7 @@ public class ElasticConnection {
                     for (String strField: objPrep.getRemove_fields()) {
                         String[] multipleFields = strField.split(",");
                         for (int i=0; i < multipleFields.length; i++) {
-                            String strRemoveScript = "ctx._source.remove(\"" + multipleFields[i] + "\")";
+                            String strRemoveScript = "ctx._source.remove(\"" + multipleFields[i].trim() + "\")";
                             lstScript.add(strRemoveScript);
                         }
                     }
@@ -2490,6 +2490,36 @@ public class ElasticConnection {
         objPrepAction = new ESPrepActionModel();
         objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE);
         objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_SIN);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_SIN);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_COS);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_COS);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_TAN);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_TAN);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10);
         objPrepAction.setIs_show(true);
         lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
 
