@@ -2030,6 +2030,36 @@ public class ElasticConnection {
         return strLatestIndexName;
     }
 
+    public List<Boolean> checkIndexExisted(String strIndex, String strType) {
+        // Check index and type already existed or not
+        List<ESIndexModel> lstIndex = getAllIndices();
+        Boolean bIsExistsIndex = false;
+        Boolean bIsExistsType = false;
+
+        for (ESIndexModel objIndex : lstIndex) {
+            if (objIndex.getIndex_name().equals(strIndex)) {
+                bIsExistsIndex = true;
+
+                for (String strIndexType : objIndex.getIndex_types()) {
+                    if (strIndexType.equals(strType)) {
+                        bIsExistsType = true;
+                        break;
+                    }
+                }
+
+                if (bIsExistsIndex) {
+                    break;
+                }
+            }
+        }
+
+        List<Boolean> lstReturn = new ArrayList<>();
+        lstReturn.add(bIsExistsIndex);
+        lstReturn.add(bIsExistsType);
+
+        return lstReturn;
+    }
+
     public Boolean deleteIndex(String strIndex) {
         Boolean bIsDeleted = false;
 
@@ -2113,7 +2143,7 @@ public class ElasticConnection {
                             List<Object> lstHeader = Arrays
                                     .asList(mapSource.keySet().toArray(new Object[mapSource.keySet().size()]));
 
-                            lstHeader = lstHeader.stream().map(str -> str.toString().replace("+", ".")).collect(Collectors.toList());
+                            lstHeader = lstHeader.stream().map(str -> str.toString().replace("-", ".")).collect(Collectors.toList());
                             CSVUtil.writeLine(objFileWriter, lstHeader);
 
                             objLogger.info("INFO: " + Arrays.toString(lstHeader.toArray()));
@@ -2189,7 +2219,7 @@ public class ElasticConnection {
 
                         for (Map.Entry<String, Object> curItem : objJSONData.entrySet()) {
                             String strFieldType = "";
-                            String strFieldName = curItem.getKey().replace(".", "+");
+                            String strFieldName = curItem.getKey().replace(".", "-");
 
                             if (lstData.get(0) instanceof HashMap) {
                                 Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
@@ -2313,7 +2343,7 @@ public class ElasticConnection {
                                 HashMap<String, Object> mapNew = new HashMap<>();
 
                                 for (Map.Entry<String, Object> item : mapOriginal.entrySet()) {
-                                    mapNew.put(item.getKey().replace(".", "+"), item.getValue());
+                                    mapNew.put(item.getKey().replace(".", "-"), item.getValue());
                                 }
 
                                 objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
