@@ -1,7 +1,12 @@
 package org.chronotics.pithos.ext.es.adaptor;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ser.FilterProvider;
+import com.fasterxml.jackson.databind.ser.PropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import joptsimple.internal.Strings;
 import org.chronotics.pithos.ext.es.log.Logger;
 import org.chronotics.pithos.ext.es.log.LoggerFactory;
@@ -119,7 +124,6 @@ public class ElasticConnection {
                     .put("client.transport.sniff", false).build();
             objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
                     new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
-
         } catch (Exception objEx) {
             objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
@@ -2214,14 +2218,39 @@ public class ElasticConnection {
                     objLogger.info("lstData(0): " + lstData.get(0));
                     objLogger.info("objJSONData: " + objJSONData);
 
+                    Integer intCheck = 0;
+
+                    if (lstData.get(0) instanceof HashMap) {
+                        Long lTotalData = (long)lstData.size();
+                        Long lCurData = 0l;
+                        for (int intCount = 0; intCount < lstData.size(); intCount++) {
+                            HashMap<String, Object> mapCur = (HashMap<String, Object>)lstData.get(0);
+
+                            Long lTotalNull = mapCur.entrySet().stream().filter(objItem -> objItem.getValue() == null).count();
+
+                            if (lTotalNull > 0) {
+                                lCurData += 1;
+                            } else {
+                                intCheck = intCount;
+                                break;
+                            }
+                        }
+
+                        if (lCurData.equals(lTotalData)) {
+                            intCheck = 0;
+                        }
+                    }
+
                     if (mapMappingField == null || mapMappingField.size() <= 0) {
                         mapMappingField = new HashMap<>();
+                        Boolean bIsHashMap = false;
 
                         for (Map.Entry<String, Object> curItem : objJSONData.entrySet()) {
                             String strFieldType = "";
                             String strFieldName = curItem.getKey().replace(".", "-");
 
-                            if (lstData.get(0) instanceof HashMap) {
+                            if (lstData.get(intCheck) instanceof HashMap) {
+                                bIsHashMap = true;
                                 Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
                                 objLogger.info("objValue: " + objValue);
 
@@ -2261,6 +2290,17 @@ public class ElasticConnection {
                                     objMappingField.setType("float");
                                 } else if (strFieldType.contains(".short")) {
                                     objMappingField.setType("short");
+                                }
+                            }
+
+                            //If type is not keyword or date, recheck again with whole data, if contain NA => type is keyword
+                            if (!objMappingField.getType().equals("keyword") && !objMappingField.getType().equals("date") && bIsHashMap) {
+                                Long lTotalNA = lstData.stream().map(objItem -> ((HashMap<String,Object>)objItem).get(curItem.getKey()))
+                                        .filter(item -> JacksonFilter.checkNAString(item.toString())).count();
+
+                                if (lTotalNA > 0) {
+                                    objMappingField.setType("keyword");
+                                    objMappingField.setIndex(true);
                                 }
                             }
 
@@ -2330,6 +2370,10 @@ public class ElasticConnection {
             createIndex(strIndex, strType, lstData, strFieldDate, null, false);
 
             if (objESClient != null) {
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
                 BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, lstData.size());
 
                 if (objBulkProcessor != null) {
@@ -2339,6 +2383,9 @@ public class ElasticConnection {
                         if (objData instanceof HashMap) {
                             HashMap<String, Object> mapOriginal = (HashMap<String, Object>)objData;
 
+//                            mapOriginal = mapOriginal.entrySet().stream()
+//                                    .collect(Collectors.toMap(item -> item.getKey(), item -> JacksonFilter.convertNAString(item.getValue().toString()), (k, v) -> k, LinkedHashMap::new));
+
                             if (mapOriginal.entrySet().stream().filter(item -> item.getKey().contains(".")).count() > 0) {
                                 HashMap<String, Object> mapNew = new HashMap<>();
 
@@ -2347,14 +2394,14 @@ public class ElasticConnection {
                                 }
 
                                 objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                        .source(objMapper.writeValueAsString(mapNew), XContentType.JSON));
+                                        .source(objCurrentMapper.writeValueAsString(mapNew), XContentType.JSON));
                             } else {
                                 objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                        .source(objMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
                             }
                         } else {
                             objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                    .source(objMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                                    .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
                         }
                     }
 
