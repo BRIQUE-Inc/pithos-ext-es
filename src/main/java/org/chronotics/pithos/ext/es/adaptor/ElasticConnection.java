@@ -230,7 +230,8 @@ public class ElasticConnection {
                                     && !curField.getKey().equals("_version") && !curField.getKey().equals("_routing")
                                     && !curField.getKey().equals("_type") && !curField.getKey().equals("_seq_no")
                                     && !curField.getKey().equals("_field_names") && !curField.getKey().equals("_source")
-                                    && !curField.getKey().equals("_id") && !curField.getKey().equals("_uid")) {
+                                    && !curField.getKey().equals("_id") && !curField.getKey().equals("_uid")
+                                    && !curField.getKey().equals("_ignored")) {
                                 ESFieldModel objFieldModel = new ESFieldModel();
                                 objFieldModel.setFull_name(curField.getValue().fullName());
                                 lstField.add(curField.getValue().fullName());
@@ -484,6 +485,52 @@ public class ElasticConnection {
         return objSearchResponse;
     }
 
+    private HashMap<String, List<Double>> statsNullityOfField(String strIndex, String strType, List<String> lstField) {
+        HashMap<String, List<Double>> mapNullity = new HashMap<>();
+
+        try {
+            if (objESClient != null) {
+                Long lTotalHit = 0L;
+
+                //Get Total Hit First
+                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+
+                MatchAllQueryBuilder objMatchAllQuery = new MatchAllQueryBuilder();
+                SearchResponse objSearchResponse = objSearchRequestBuilder.setQuery(objMatchAllQuery).get();
+
+                if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
+                    lTotalHit = objSearchResponse.getHits().getTotalHits();
+                }
+
+                for (int intCount = 0; intCount < lstField.size(); intCount++) {
+                    String strField = lstField.get(intCount);
+
+                    objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                    SearchSourceBuilder objSearchSoureBuilder = new SearchSourceBuilder();
+                    objSearchSoureBuilder.size(0);
+
+                    BoolQueryBuilder objBoolQuery = new BoolQueryBuilder();
+                    objBoolQuery.mustNot(QueryBuilders.existsQuery(strField));
+
+                    objSearchSoureBuilder.query(objBoolQuery);
+                    objSearchRequestBuilder.setSource(objSearchSoureBuilder);
+
+                    SearchResponse objNullResponse = objSearchRequestBuilder.get();
+
+                    if (objNullResponse != null && objNullResponse.getHits() != null && objNullResponse.getHits().getTotalHits() > 0) {
+                        Long lCurHit = objNullResponse.getHits().getTotalHits();
+
+                        mapNullity.put(strField, Arrays.asList(lCurHit.doubleValue(), (lCurHit.doubleValue() * 100) / lTotalHit));
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return mapNullity;
+    }
+
     // Way to generate Histogram of array data:
     // http://www.oswego.edu/~srp/stats/hist_con.htm
     private List<ESFieldAggModel> getHistogramOfField(String strIndex, String strType, List<String> lstField,
@@ -721,7 +768,7 @@ public class ElasticConnection {
         return lstAggResult;
     }
 
-    private Map<String, List<Double>> statsNullMismatchOfField(String strIndex, String strType, List<String> lstStringField) {
+    private Map<String, List<Double>> statsMismatchOfField(String strIndex, String strType, List<String> lstStringField) {
         Map<String, List<Double>> mapStats = new HashMap<>();
 
         try {
@@ -744,21 +791,33 @@ public class ElasticConnection {
 
                 if (lTotalHit > 0) {
                     for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
-                        BoolQueryBuilder objBooleanQuery = new BoolQueryBuilder();
-                        TermQueryBuilder objTermQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "");
-                        objBooleanQuery.must(objTermQueryBuilder);
-                        objSearchRequestBuilder.setQuery(null);
+                        try {
+                            BoolQueryBuilder objBooleanQuery = new BoolQueryBuilder();
+                            TermQueryBuilder objNAQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "NA");
+                            TermQueryBuilder objnaQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "na");
+                            TermQueryBuilder objN_AQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "N/A");
+                            TermQueryBuilder objn_aQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "n/a");
+                            TermQueryBuilder objNANQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "NAN");
+                            TermQueryBuilder objnanQueryBuilder = QueryBuilders.termQuery(lstStringField.get(intCount), "nan");
+                            objBooleanQuery.should(objNAQueryBuilder).should(objnaQueryBuilder)
+                                    .should(objN_AQueryBuilder).should(objn_aQueryBuilder)
+                                    .should(objNANQueryBuilder).should(objnanQueryBuilder);
 
-                        objSearchResponse = objSearchRequestBuilder.setQuery(objBooleanQuery).get();
+                            objSearchRequestBuilder.setQuery(null);
 
-                        if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
-                            Long lCurHit = objSearchResponse.getHits().getTotalHits();
+                            objSearchResponse = objSearchRequestBuilder.setQuery(objBooleanQuery).get();
 
-                            List<Double> lstNullityStats = new ArrayList<>();
-                            lstNullityStats.add(lCurHit.doubleValue());
-                            lstNullityStats.add(lCurHit.doubleValue() * 100.0 / lTotalHit);
+                            if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
+                                Long lCurHit = objSearchResponse.getHits().getTotalHits();
 
-                            mapStats.put(lstStringField.get(intCount), lstNullityStats);
+                                List<Double> lstNullityStats = new ArrayList<>();
+                                lstNullityStats.add(lCurHit.doubleValue());
+                                lstNullityStats.add(lCurHit.doubleValue() * 100.0 / lTotalHit);
+
+                                mapStats.put(lstStringField.get(intCount), lstNullityStats);
+                            }
+                        } catch (Exception objEx) {
+                            objLogger.warn("WARN: " + ExceptionUtil.getStrackTrace(objEx));
                         }
                     }
 
@@ -780,7 +839,18 @@ public class ElasticConnection {
 
         try {
             if (objESClient != null) {
-                Map<String, List<Double>> mapNullityStats = statsNullMismatchOfField(strIndex, strType, lstStringField);
+                Map<String, List<Double>> mapMismatchStats = statsMismatchOfField(strIndex, strType, lstStringField);
+
+                List<String> lstCombineField = new ArrayList<>();
+
+                for (int intCount = 0; intCount < lstNumberField.size(); intCount++) {
+                    lstCombineField.add(lstNumberField.get(intCount));
+                }
+
+                for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
+                    lstCombineField.add(lstStringField.get(intCount));
+                }
+                Map<String, List<Double>> mapNullStats = statsNullityOfField(strIndex, strType, lstCombineField);
 
                 SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
@@ -950,9 +1020,14 @@ public class ElasticConnection {
                                         }
                                     }
 
-                                    if (mapNullityStats.containsKey(strCurFieldName)) {
-                                        objCurStatsField.setNullity(mapNullityStats.get(strCurFieldName).get(0));
-                                        objCurStatsField.setNullity(mapNullityStats.get(strCurFieldName).get(1));
+                                    if (mapMismatchStats.containsKey(strCurFieldName)) {
+                                        objCurStatsField.setMismatched(mapMismatchStats.get(strCurFieldName).get(0));
+                                        objCurStatsField.setMismatched_ratio(mapMismatchStats.get(strCurFieldName).get(1));
+                                    }
+
+                                    if (mapNullStats.containsKey(strCurFieldName)) {
+                                        objCurStatsField.setNullity(mapNullStats.get(strCurFieldName).get(0));
+                                        objCurStatsField.setNullity_ratio(mapNullStats.get(strCurFieldName).get(1));
                                     }
 
                                     mapFieldStat.put(strCurFieldName, objCurStatsField);
@@ -965,12 +1040,25 @@ public class ElasticConnection {
                 if (lstStringField != null && lstStringField.size() > 0) {
                     for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
                         String strCurField = lstStringField.get(intCount);
-                        if (!mapFieldStat.containsKey(strCurField) && mapNullityStats.containsKey(strCurField)) {
+                        if (!mapFieldStat.containsKey(strCurField)) {
                             ESFieldStatModel objCurFieldStat = new ESFieldStatModel();
-                            objCurFieldStat.setNullity(mapNullityStats.get(strCurField).get(0));
-                            objCurFieldStat.setNullity_ratio(mapNullityStats.get(strCurField).get(1));
+                            Boolean bCanAdd = false;
 
-                            mapFieldStat.put(strCurField, objCurFieldStat);
+                            if (mapMismatchStats.containsKey(strCurField)) {
+                                objCurFieldStat.setMismatched(mapMismatchStats.get(strCurField).get(0));
+                                objCurFieldStat.setMismatched_ratio(mapMismatchStats.get(strCurField).get(1));
+                                bCanAdd = true;
+                            }
+
+                            if (mapNullStats.containsKey(strCurField)) {
+                                objCurFieldStat.setNullity(mapNullStats.get(strCurField).get(0));
+                                objCurFieldStat.setNullity_ratio(mapNullStats.get(strCurField).get(1));
+                                bCanAdd = true;
+                            }
+
+                            if (bCanAdd) {
+                                mapFieldStat.put(strCurField, objCurFieldStat);
+                            }
                         }
                     }
                 }
@@ -1704,7 +1792,19 @@ public class ElasticConnection {
 
         try {
             if (objESClient != null) {
+                Long lTotalHit = 0l;
+
+                //Get Total Hit First
                 SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+
+                MatchAllQueryBuilder objMatchAllQuery = new MatchAllQueryBuilder();
+                SearchResponse objSearchResponse = objRequestBuilder.setQuery(objMatchAllQuery).get();
+
+                if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
+                    lTotalHit = objSearchResponse.getHits().getTotalHits();
+                }
+
+                objRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
                 objSourceBuilder.size(0);
                 objRequestBuilder.setSource(objSourceBuilder);
@@ -1718,7 +1818,6 @@ public class ElasticConnection {
                 if (objNullResponse != null && objNullResponse.getHits() != null
                         && objNullResponse.getHits().getTotalHits() > 0
                         && objNullResponse.getAggregations() != null) {
-                    Long lTotalHit = objNullResponse.getHits().getTotalHits();
                     List<Aggregation> lstNullAggs = objNullResponse.getAggregations().asList();
 
                     for (int intCount = 0; intCount < lstNullAggs.size(); intCount++) {
@@ -1728,10 +1827,15 @@ public class ElasticConnection {
                             //Long lTotalDoc = ((InternalValueCount) lstNullAggs.get(intCount)).getValue();
                             Long lTotalDoc = ((InternalFilter) lstNullAggs.get(intCount)).getDocCount();
 
-                            if (lTotalHit.doubleValue() / lTotalDoc.doubleValue() < 1.1
-                                    && lTotalHit.doubleValue() / lTotalDoc.doubleValue() > 0.9) {
+                            if (lTotalDoc.doubleValue() / lTotalHit.doubleValue() < 1.1
+                                    && lTotalDoc.doubleValue() / lTotalHit.doubleValue() > 0.1) {
                                 lstNotNullField.add(strCurFieldName);
                             }
+
+//                            if (lTotalHit.doubleValue() / lTotalDoc.doubleValue() < 1.1
+//                                    && lTotalHit.doubleValue() / lTotalDoc.doubleValue() > 0.9) {
+//                                lstNotNullField.add(strCurFieldName);
+//                            }
                         }
                     }
                 }
