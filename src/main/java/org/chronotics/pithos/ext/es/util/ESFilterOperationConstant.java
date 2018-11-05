@@ -75,7 +75,6 @@ public class ESFilterOperationConstant {
     public static final String FUNCTION_ARITHMETIC_LOG = "Log";
     public static final String FUNCTION_ARITHMETIC_LOG10 = "Log10";
 
-    public static final String FUNCTION_STATISTICS_COUNT = "Count";
     public static final String FUNCTION_STATISTICS_MEAN = "Mean";
     public static final String FUNCTION_STATISTICS_MEDIAN = "Median";
     public static final String FUNCTION_STATISTICS_MIN = "Min";
@@ -83,20 +82,17 @@ public class ESFilterOperationConstant {
     public static final String FUNCTION_STATISTICS_SUM = "Sum";
     public static final String FUNCTION_STATISTICS_VARIANCE = "Variance";
     public static final String FUNCTION_STATISTICS_STD = "StandardDeviation";
-    public static final String FUNCTION_STATISTICS_QUANTILE = "Quantile";
-    public static final String FUNCTION_STATISTICS_FIRST = "First";
-    public static final String FUNCTION_STATISTICS_LAST = "Last";
     public static final String FUNCTION_STATISTICS_RANGE = "Range";
     public static final String FUNCTION_STATISTICS_STANDARD = "Standardization";
     public static final String FUNCTION_STATISTICS_NORM = "Normalization";
 
+    public static final String FUNCTION_SAMPLING_SIMPLE = "Simple";
+    public static final String FUNCTION_SAMPLING_SYSTEMATIC = "Systematic";
+    public static final String FUNCTION_SAMPLING_DISTRIBUTION = "Distribution";
+    public static final String FUNCTION_SAMPLING_SMOTE = "SMOTE";
 
     public static final String FUNCTION_TRANSFORM_LAPLACE = "Laplace";
     public static final String FUNCTION_TRANSFORM_FOURIER = "Fourier";
     public static final String FUNCTION_TRANSFORM_WAVELET = "Wavelet";
     public static final String FUNCTION_TRANSFORM_Z = "Z";
-
-    public static final String FUNCTION_CONVERT_TIMESERIES = "Timeseries";
-
-    public static final String FUNCTION_SAMPLING = "Sampling";
 }

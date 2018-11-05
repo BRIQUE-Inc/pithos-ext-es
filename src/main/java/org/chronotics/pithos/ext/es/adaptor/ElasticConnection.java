@@ -1640,6 +1640,43 @@ public class ElasticConnection {
         return strScript;
     }
 
+    private void handleSimpleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+        Long lNumOfRow = objPrep.getNum_of_rows();
+        List<String> lstSelectedField = objPrep.getSelected_fields();
+
+        if (lstSelectedField == null) {
+
+        } else if (lstSelectedField.size() == 1) {
+
+        } else if (lstSelectedField.size() > 1) {
+
+        }
+    }
+
+    private void handleSystematicSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+
+    }
+
+    private void handleDistributionSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+
+    }
+
+    private void handleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+        switch (objPrep.getSampling_op()) {
+            case ESFilterOperationConstant.FUNCTION_SAMPLING_SIMPLE:
+                handleSimpleSamplingAction(objPrep);
+                break;
+            case ESFilterOperationConstant.FUNCTION_SAMPLING_SYSTEMATIC:
+                handleSystematicSamplingAction(objPrep);
+                break;
+            case ESFilterOperationConstant.FUNCTION_SAMPLING_DISTRIBUTION:
+                handleDistributionSamplingAction(objPrep);
+                break;
+            case ESFilterOperationConstant.FUNCTION_SAMPLING_SMOTE:
+                break;
+        }
+    }
+
     private String generateStatisticFunctionScript(ESPrepFunctionStatisticModel objPrep, ESFieldStatModel objFieldStat) {
         StringBuilder strScript = new StringBuilder();
         String strNewFieldName = ConverterUtil.convertDashField(objPrep.getNew_field_name());
