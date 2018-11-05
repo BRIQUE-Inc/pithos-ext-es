@@ -858,13 +858,18 @@ public class ElasticConnection {
 
                 List<String> lstCombineField = new ArrayList<>();
 
-                for (int intCount = 0; intCount < lstNumberField.size(); intCount++) {
-                    lstCombineField.add(lstNumberField.get(intCount));
+                if (lstNumberField != null && lstNumberField.size() > 0) {
+                    for (int intCount = 0; intCount < lstNumberField.size(); intCount++) {
+                        lstCombineField.add(lstNumberField.get(intCount));
+                    }
                 }
 
-                for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
-                    lstCombineField.add(lstStringField.get(intCount));
+                if (lstStringField != null && lstStringField.size() > 0) {
+                    for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
+                        lstCombineField.add(lstStringField.get(intCount));
+                    }
                 }
+
                 Map<String, List<Double>> mapNullStats = statsNullityOfField(strIndex, strType, lstCombineField);
 
                 SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
@@ -1628,7 +1633,7 @@ public class ElasticConnection {
                     }
                 }
 
-                strScript = generateStatisticFunctionScript(objPrep, null);
+                strScript = generateStatisticFunctionScript(objPrep, objStatField);
             }
         }
 
@@ -1810,10 +1815,13 @@ public class ElasticConnection {
             ESPrepFunctionArithmeticModel objPrep = (ESPrepFunctionArithmeticModel) objPrepAction;
 
             strNewFieldName = objPrep.getNew_field_name();
-//            List<ESFieldModel> lstField = getFieldsMetaData(objPrep.getIndex(), objPrep.getType(),
-//                    new ArrayList<>(Arrays.asList(objPrep.getField())));
-//
-//            strNewFieldType = lstField.get(0).getType();
+            strNewFieldType = "double";
+        }
+
+        if (objPrepAction instanceof ESPrepFunctionStatisticModel) {
+            ESPrepFunctionStatisticModel objPrep = (ESPrepFunctionStatisticModel) objPrepAction;
+
+            strNewFieldName = objPrep.getNew_field_name();
             strNewFieldType = "double";
         }
 
