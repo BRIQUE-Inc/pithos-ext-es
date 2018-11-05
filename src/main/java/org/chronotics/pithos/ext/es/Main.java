@@ -18,19 +18,21 @@ public class Main {
     private static ElasticConnection objESConnection;
 
     public static void main(String[] args) throws IOException {
-        Long a = Long.valueOf(12334568);
-        Long b = Long.valueOf(13232656);
-        System.out.println(b.doubleValue() / a.doubleValue());
+        String mathExpression = "#cos#(#sin#(*a*)) +  #tan#(*b*)";
 
-        List<String> lstScript = new ArrayList<>();
-        String strField = "a";
-        String[] multipleFields = strField.split(",");
-        for (int i=0; i < multipleFields.length; i++) {
-            String strRemoveScript = "ctx._source.remove(\"" + multipleFields[i] + "\")";
-            lstScript.add(strRemoveScript);
-        }
-
-        System.out.println(Arrays.toString(lstScript.toArray()));
+//        Long a = Long.valueOf(12334568);
+//        Long b = Long.valueOf(13232656);
+//        System.out.println(b.doubleValue() / a.doubleValue());
+//
+//        List<String> lstScript = new ArrayList<>();
+//        String strField = "a";
+//        String[] multipleFields = strField.split(",");
+//        for (int i=0; i < multipleFields.length; i++) {
+//            String strRemoveScript = "ctx._source.remove(\"" + multipleFields[i] + "\")";
+//            lstScript.add(strRemoveScript);
+//        }
+//
+//        System.out.println(Arrays.toString(lstScript.toArray()));
 //        objESConnection = ElasticConnection.getInstance("docker-cluster",
 //                "192.168.0.74", 9304);
 //        System.setProperty("log4j.configurationFile","C:\\Program Files\\Git\\code\\git\\chron-prep-was\\src\\main\\resources\\logback.xml");

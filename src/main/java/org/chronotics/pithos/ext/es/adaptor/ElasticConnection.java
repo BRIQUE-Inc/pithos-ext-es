@@ -572,9 +572,9 @@ public class ElasticConnection {
                     String strMaxName = lstNumberField.get(intCount) + "_max";
 
                     objSearchRequestBuilder
-                            .addAggregation(AggregationBuilders.min(strMinName).field(lstNumberField.get(intCount)));
+                            .addAggregation(AggregationBuilders.min(strMinName).field(lstNumberField.get(intCount).trim()));
                     objSearchRequestBuilder
-                            .addAggregation(AggregationBuilders.max(strMaxName).field(lstNumberField.get(intCount)));
+                            .addAggregation(AggregationBuilders.max(strMaxName).field(lstNumberField.get(intCount).trim()));
                 }
 
                 SearchResponse objMinMaxSearchResponse = objSearchRequestBuilder.get();
