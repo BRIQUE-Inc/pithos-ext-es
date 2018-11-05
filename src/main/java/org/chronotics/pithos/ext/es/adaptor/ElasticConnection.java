@@ -1177,7 +1177,7 @@ public class ElasticConnection {
                         if (intCountCurField > 0) {
                             objCurScriptBuilder.append("+");
                         }
-                        objCurScriptBuilder.append("ctx._source.").append(lstCurField.get(intCountCurField));
+                        objCurScriptBuilder.append("ctx._source").append(ConverterUtil.convertDashField(lstCurField.get(intCountCurField)));
                     }
 
                     objCurScriptBuilder.append(" }");
@@ -1441,13 +1441,16 @@ public class ElasticConnection {
         String strConvertScript = "";
         String strCatchConvertScript = "";
 
+        strField = ConverterUtil.convertDashField(strField);
+        strNewField = ConverterUtil.convertDashField(strNewField);
+
         try {
-            String strOldField = "ctx._source." + strField;
+            String strOldField = "ctx._source" + strField;
             StringBuilder objBuilder = new StringBuilder();
             StringBuilder objCatchBuilder = new StringBuilder();
 
-            objBuilder.append("ctx._source.").append(strNewField).append(" = ");
-            objCatchBuilder.append("ctx._source.").append(strNewField).append(" = ");
+            objBuilder.append("ctx._source").append(strNewField).append(" = ");
+            objCatchBuilder.append("ctx._source").append(strNewField).append(" = ");
 
             switch (strConvertedDataType) {
                 case ESFilterOperationConstant.DATA_TYPE_BOOLEAN:
@@ -1499,7 +1502,7 @@ public class ElasticConnection {
                     objCatchBuilder.append(strFailedDefaultValue).append(";");
                     break;
                 case ESFilterOperationConstant.DATA_TYPE_TEXT:
-                    strFailedDefaultValue = strFailedDefaultValue.isEmpty() ? "\"\"" : strFailedDefaultValue;
+                    strFailedDefaultValue = strFailedDefaultValue.isEmpty() ? "\"\"" : ("\"" + strFailedDefaultValue + "\"");
                     objBuilder.append(strOldField).append(".toString();");
                     objCatchBuilder.append(strFailedDefaultValue).append(";");
                     break;
@@ -1549,7 +1552,10 @@ public class ElasticConnection {
                         && objPrep.getCopy_to_fields().size() == objPrep.getCopy_from_fields().size()) {
                     for (int intCountCopy = 0; intCountCopy < objPrep.getCopy_from_fields()
                             .size(); intCountCopy++) {
-                        String strCopyScript = "ctx._source." + objPrep.getCopy_to_fields().get(intCountCopy) + " = ctx._source." + objPrep.getCopy_from_fields().get(intCountCopy);
+                        String strFromField = ConverterUtil.convertDashField(objPrep.getCopy_to_fields().get(intCountCopy));
+                        String strToField = ConverterUtil.convertDashField(objPrep.getCopy_from_fields().get(intCountCopy));
+
+                        String strCopyScript = "ctx._source" + strFromField + " = ctx._source" + strToField;
                         lstScript.add(strCopyScript);
                     }
                 }
@@ -1599,47 +1605,50 @@ public class ElasticConnection {
                                                     String strArithmeticOperation, String strArithmeticParam1, String strArithmeticParam2) {
         String strFormatScript = "";
 
+        strField = ConverterUtil.convertDashField(strField);
+        newFieldName = ConverterUtil.convertDashField(newFieldName);
+
         // TODO for unary operation, the calculation is based on the strField, and newFieldName
         switch (strArithmeticOperation) {
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_ADD:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strArithmeticParam1)
-                        .append(" + ctx._source.").append(strArithmeticParam2).toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strArithmeticParam1)
+                        .append(" + ctx._source").append(strArithmeticParam2).toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_SUB:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strArithmeticParam1)
-                        .append(" - ctx._source.").append(strArithmeticParam2).toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strArithmeticParam1)
+                        .append(" - ctx._source").append(strArithmeticParam2).toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_MULTIPLY:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strArithmeticParam1)
-                        .append(" * ctx._source.").append(strArithmeticParam2).toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strArithmeticParam1)
+                        .append(" * ctx._source").append(strArithmeticParam2).toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_DIVIDE:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strArithmeticParam1)
-                        .append(" / ctx._source.").append(strArithmeticParam2).toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strArithmeticParam1)
+                        .append(" / ctx._source").append(strArithmeticParam2).toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_SIN:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = Math.sin(ctx._source.").append(strField).append(")").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = Math.sin(ctx._source").append(strField).append(")").toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_COS:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = Math.cos(ctx._source.").append(strField).append(")").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = Math.cos(ctx._source").append(strField).append(")").toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_TAN:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = Math.tan(ctx._source.").append(strField).append(")").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = Math.tan(ctx._source").append(strField).append(")").toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = Math.log(ctx._source.").append(strField).append(")").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = Math.log(ctx._source").append(strField).append(")").toString();
                 break;
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = Math.log10(ctx._source.").append(strField).append(")").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = Math.log10(ctx._source").append(strField).append(")").toString();
                 break;
         }
 
@@ -1876,39 +1885,42 @@ public class ElasticConnection {
                                             String strFormatOperation, String strFormatParam1, String strFormatParam2) {
         String strFormatScript = "";
 
+        strField = ConverterUtil.convertDashField(strField);
+        newFieldName = ConverterUtil.convertDashField(newFieldName);
+
         switch (strFormatOperation) {
             case ESFilterOperationConstant.DATA_FORMAT_LOWERCASE:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strField).append(".toLowerCase();").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strField).append(".toLowerCase();").toString();
                 break;
             case ESFilterOperationConstant.DATA_FORMAT_UPPERCASE:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strField).append(".toUpperCase();").toString();
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strField).append(".toUpperCase();").toString();
                 break;
             case ESFilterOperationConstant.DATA_FORMAT_ADD_POSTFIX:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strField).append(" + \"").append(strFormatParam1)
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strField).append(" + \"").append(strFormatParam1)
                         .append("\";").toString();
                 break;
             case ESFilterOperationConstant.DATA_FORMAT_ADD_PREFIX:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName).append(" = \"")
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName).append(" = \"")
                         .append(strFormatParam1).append("\" + ").append(strField).append(";").toString();
                 break;
             case ESFilterOperationConstant.DATA_REPLACE_REMOVE_CHAR:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strField).append(".replace(\"").append(strFormatParam1)
                         .append("\", \"\");").toString();
                 break;
             case ESFilterOperationConstant.DATA_REPLACE_REMOVE_WHITE_SPACE:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strField).append(".replaceAll(\"\\s+\", \"\");")
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strField).append(".replaceAll(\"\\s+\", \"\");")
                         .toString();
                 break;
             case ESFilterOperationConstant.DATA_REPLACE_REPLACE_POS:
                 break;
             case ESFilterOperationConstant.DATA_REPLACE_REPLACE_TEXT:
-                strFormatScript = new StringBuilder().append("ctx._source.").append(newFieldName)
-                        .append(" = ctx._source.").append(strField).append(".replace(\"").append(strFormatParam1)
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ctx._source").append(strField).append(".replace(\"").append(strFormatParam1)
                         .append("\", \"").append(strFormatParam2).append("\");").toString();
                 break;
         }

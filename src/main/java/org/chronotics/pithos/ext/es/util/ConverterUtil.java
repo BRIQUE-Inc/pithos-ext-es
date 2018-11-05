@@ -6,6 +6,13 @@ import java.util.*;
 import java.util.function.Function;
 
 public class ConverterUtil {
+    public static String convertDashField(String strDashField) {
+        if (strDashField.contains("-")) {
+            return "['" + strDashField + "']";
+        } else {
+            return "." + strDashField;
+        }
+    }
     public static String convertDateToString(Date objDate, String strFormat) {
         SimpleDateFormat objSimpleDateFormat = new SimpleDateFormat(strFormat);
         return objSimpleDateFormat.format(objDate);
