@@ -1617,14 +1617,25 @@ public class ElasticConnection {
             ESPrepFunctionStatisticModel objPrep = (ESPrepFunctionStatisticModel) objPrepAction;
 
             if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
-                strScript = generateStatisticFunctionScript(objPrep);
+                ESFieldStatModel objStatField = null;
+
+                if (objPrep.getStatistic_op().equals(ESFilterOperationConstant.FUNCTION_STATISTICS_STANDARD)
+                    || objPrep.getStatistic_op().equals(ESFilterOperationConstant.FUNCTION_STATISTICS_NORM)) {
+                    Map<String, ESFieldStatModel> mapStat = statsField(objPrep.getIndex(), objPrep.getType(), Arrays.asList(objPrep.getSelected_field().get(0)), null, true);
+
+                    if (mapStat != null && mapStat.containsKey(objPrep.getSelected_field().get(0))) {
+                        objStatField = mapStat.get(objPrep.getSelected_field().get(0));
+                    }
+                }
+
+                strScript = generateStatisticFunctionScript(objPrep, null);
             }
         }
 
         return strScript;
     }
 
-    private String generateStatisticFunctionScript(ESPrepFunctionStatisticModel objPrep) {
+    private String generateStatisticFunctionScript(ESPrepFunctionStatisticModel objPrep, ESFieldStatModel objFieldStat) {
         StringBuilder strScript = new StringBuilder();
         String strNewFieldName = ConverterUtil.convertDashField(objPrep.getNew_field_name());
 
@@ -1686,8 +1697,25 @@ public class ElasticConnection {
                 strScript.append(strNewField).append(" = Math.sqrt(dbVar);");
                 break;
             case ESFilterOperationConstant.FUNCTION_STATISTICS_STANDARD:
+                if (objFieldStat != null) {
+                    Double dbMean = objFieldStat.getAvg();
+                    Double dbStd = objFieldStat.getStd_deviation();
+                    String strField = ConverterUtil.convertDashField(objPrep.getSelected_field().get(0));
+
+                    strScript.append(strNewField).append(" = (").append("ctx._source").append(strField).append(" - ").append(dbMean.toString()).append(") / ").append(dbStd.toString()).append(";");
+                }
+
                 break;
             case ESFilterOperationConstant.FUNCTION_STATISTICS_NORM:
+                if (objFieldStat != null) {
+                    Double dbMin = objFieldStat.getMin();
+                    Double dbMax = objFieldStat.getMax();
+                    String strOldField = ConverterUtil.convertDashField(objPrep.getSelected_field().get(0));
+
+                    strScript.append(strNewField).append(" = (").append("ctx._source").append(strOldField).append(" - ").append(dbMin.toString()).append(") / (")
+                            .append(dbMax.toString()).append(" - ").append(dbMin.toString()).append(");");
+                }
+
                 break;
             default:
                 break;
