@@ -82,10 +82,14 @@ public class ESFilterOperationConstant {
     public static final String FUNCTION_STATISTICS_MAX = "Max";
     public static final String FUNCTION_STATISTICS_SUM = "Sum";
     public static final String FUNCTION_STATISTICS_VARIANCE = "Variance";
+    public static final String FUNCTION_STATISTICS_STD = "StandardDeviation";
     public static final String FUNCTION_STATISTICS_QUANTILE = "Quantile";
     public static final String FUNCTION_STATISTICS_FIRST = "First";
     public static final String FUNCTION_STATISTICS_LAST = "Last";
     public static final String FUNCTION_STATISTICS_RANGE = "Range";
+    public static final String FUNCTION_STATISTICS_STANDARD = "Standardization";
+    public static final String FUNCTION_STATISTICS_NORM = "Normalization";
+
 
     public static final String FUNCTION_TRANSFORM_LAPLACE = "Laplace";
     public static final String FUNCTION_TRANSFORM_FOURIER = "Fourier";

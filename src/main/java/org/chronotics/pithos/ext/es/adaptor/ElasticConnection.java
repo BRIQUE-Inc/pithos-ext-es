@@ -195,7 +195,7 @@ public class ElasticConnection {
 
     @SuppressWarnings("unchecked")
     private Map<String, Map<String, List<ESFieldModel>>> getFieldsOfIndices(List<String> lstIndex, List<String> lstType,
-                                                                            List<String> lstField) {
+                                                                            List<String> lstField, Boolean bIsCheckNull) {
         Map<String, Map<String, List<ESFieldModel>>> mapFields = new HashMap<>();
 
         try {
@@ -269,7 +269,7 @@ public class ElasticConnection {
                         List<String> notNullField = getNotNullField(strCurIndex, strCurType, lstField);
                         List<ESFieldModel> lstNotNullESField = new ArrayList<>();
                         for (ESFieldModel fd : lstESField) {
-                            if (notNullField.contains(fd.getFull_name())) {
+                            if (!bIsCheckNull || notNullField.contains(fd.getFull_name())) {
                                 lstNotNullESField.add(fd);
                             }
                         }
@@ -295,7 +295,7 @@ public class ElasticConnection {
 
         try {
             Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = getFieldsOfIndices(Arrays.asList(strIndex),
-                    Arrays.asList(strType), null);
+                    Arrays.asList(strType), null, true);
 
             if (mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex)) {
                 if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
@@ -367,7 +367,20 @@ public class ElasticConnection {
                         && objFilter.getFiltered_conditions().size() > 0))
                 .map(objFiltered -> objFiltered.getFiltered_on_field()).collect(Collectors.toList());
 
-        Map<String, ESFieldStatModel> mapStats = statsField(strIndex, strType, lstNotAddedFieldName, lstNotAddedFieldName, false);
+        List<String> lstNumericField = new ArrayList<>();
+        List<String> lstTextField = new ArrayList<>();
+
+        lstNumericField = lstFieldModel.stream()
+                .filter(objField -> !objField.getType().equals("text") && !objField.getType().equals("keyword") && !objField.getType().equals("date")  && lstNotAddedFieldName.contains(objField.getFull_name()))
+                .map(objField -> objField.getFull_name())
+                .collect(Collectors.toList());
+
+        lstTextField = lstFieldModel.stream()
+                .filter(objField -> lstNotAddedFieldName.contains(objField.getFull_name()) && (objField.getType().equals("text") || objField.getType().equals("keyword")))
+                .map(objField -> objField.getFull_name())
+                .collect(Collectors.toList());
+
+        Map<String, ESFieldStatModel> mapStats = statsField(strIndex, strType, lstNumericField, lstTextField, false);
 
         for (int intCountRequest = 0; intCountRequest < lstNotAddedFilterRequest.size(); intCountRequest++) {
             ESFilterRequestModel objCurFilterRequest = lstNotAddedFilterRequest.get(intCountRequest);
@@ -462,7 +475,7 @@ public class ElasticConnection {
                 List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
 
                 if (objQueryBuilder != null) {
-                    // TODO why need to check lstNotAddedFilterRequest?
+                    // Special case: to get value from UCL, LCL, must get statistic information first
                     if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
                         objQueryBuilder = generateAggQueryBuilder(arrIndex[0], arrType[0], objQueryBuilder,
                                 lstNotAddedFilterRequest, lstFieldModel);
@@ -543,7 +556,7 @@ public class ElasticConnection {
 
         try {
             // Get data type of fields
-            List<ESFieldModel> lstFieldMeta = getFieldsMetaData(strIndex, strType, lstField);
+            List<ESFieldModel> lstFieldMeta = getFieldsMetaData(strIndex, strType, lstField, true);
 
             List<String> lstTextField = lstFieldMeta.stream()
                     .filter(objField -> objField.getType().equals("keyword")
@@ -1203,7 +1216,7 @@ public class ElasticConnection {
             List<String> lstStatFields = new ArrayList<>();
 
             if (lstFields == null || lstFields.size() <= 1) {
-                Map<String, Map<String, List<ESFieldModel>>> mapFoundFields = getFieldsOfIndices(Arrays.asList(strIndex), Arrays.asList(strType), new ArrayList<>());
+                Map<String, Map<String, List<ESFieldModel>>> mapFoundFields = getFieldsOfIndices(Arrays.asList(strIndex), Arrays.asList(strType), new ArrayList<>(), true);
 
                 if (mapFoundFields.containsKey(strIndex) && mapFoundFields.get(strIndex).containsKey(strType)) {
                     lstStatFields = mapFoundFields.get(strIndex).get(strType).stream()
@@ -1600,7 +1613,87 @@ public class ElasticConnection {
             }
         }
 
+        if (objPrepAction instanceof ESPrepFunctionStatisticModel) {
+            ESPrepFunctionStatisticModel objPrep = (ESPrepFunctionStatisticModel) objPrepAction;
+
+            if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+                strScript = generateStatisticFunctionScript(objPrep);
+            }
+        }
+
         return strScript;
+    }
+
+    private String generateStatisticFunctionScript(ESPrepFunctionStatisticModel objPrep) {
+        StringBuilder strScript = new StringBuilder();
+        String strNewFieldName = ConverterUtil.convertDashField(objPrep.getNew_field_name());
+
+        List<Double> lstTest = Arrays.asList(1.0, 2.0, 3.0);
+        StringBuilder strArrField = new StringBuilder();
+        strArrField.append("Arrays.asList(new Double[] {");
+        strArrField.append(objPrep.getSelected_field().stream().map(str -> "ctx._source" + ConverterUtil.convertDashField(str)).collect(Collectors.joining(",")));
+        strArrField.append("}).stream().mapToDouble(num -> num)");
+
+        StringBuilder strArrNotMapField = new StringBuilder();
+        strArrNotMapField.append("Arrays.asList(new Double[] {");
+        strArrNotMapField.append(objPrep.getSelected_field().stream().map(str -> "ctx._source" + ConverterUtil.convertDashField(str)).collect(Collectors.joining(",")));
+        strArrNotMapField.append("}).stream()");
+
+        String strNewField = "ctx._source" + strNewFieldName;
+
+        switch (objPrep.getStatistic_op()) {
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_SUM:
+                //lstTest.stream().mapToDouble(a -> a).sum();
+                strScript.append(strNewField).append(" = ").append(strArrField.toString());
+                strScript.append(".sum()");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_MIN:
+                //lstTest.stream().mapToDouble(a -> a).min().getAsDouble();
+                strScript.append(strNewField).append(" = ").append(strArrField.toString());
+                strScript.append(".min().getAsDouble()");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_MAX:
+                strScript.append(strNewField).append(" = ").append(strArrField.toString());
+                strScript.append(".max().getAsDouble()");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_MEDIAN:
+                //lstTest.stream().mapToDouble(a -> a).sorted().skip((3-1)/2).limit(2-3%2).average().orElse(Double.NaN);
+                strScript.append(strNewField).append(" = ").append(strArrField.toString());
+                strScript.append(".sorted().skip((").append(objPrep.getSelected_field().size()).append("-1)/2).limit(2-").append(objPrep.getSelected_field().size()).append("%2).average().orElse(Double.NaN)");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_MEAN:
+                strScript.append(strNewField).append(" = ").append(strArrField.toString());
+                strScript.append(".average().getAsDouble()");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_RANGE:
+                strScript.append(strNewField).append(" = (").append(strArrField.toString());
+                strScript.append(".max().getAsDouble() - ").append(strArrField.toString()).append(".min().getAsDouble())");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_VARIANCE:
+                //double dbMean = lstTest.stream().mapToDouble(a -> a).average().getAsDouble();
+                //double dbSum = lstTest.stream().mapToDouble(a -> Math.pow(a - dbMean, 2)).sum() / (3 - 1);
+                strScript.append("double dbMean = ").append(strArrField.toString()).append(".average().getAsDouble(); ");
+                strScript.append(strNewField).append(" = ").append(strArrNotMapField.toString()).append(".mapToDouble(num -> Math.pow(num - dbMean, 2)).sum() / ");
+                strScript.append(objPrep.getSelected_field().size() - 1).append(";");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_STD:
+                //double dbMean = lstTest.stream().mapToDouble(a -> a).average().getAsDouble();
+                //double dbVar = lstTest.stream().mapToDouble(a -> Math.pow(a - dbMean, 2)).sum() / (3 - 1);
+                //double dbStd = Math.sqrt(dbVar);
+                strScript.append("double dbMean = ").append(strArrField.toString()).append(".average().getAsDouble(); ");
+                strScript.append("double dbVar = ").append(strArrNotMapField.toString()).append(".mapToDouble(num -> Math.pow(num - dbMean, 2)).sum() / ");
+                strScript.append(objPrep.getSelected_field().size() - 1).append("; ");
+                strScript.append(strNewField).append(" = Math.sqrt(dbVar);");
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_STANDARD:
+                break;
+            case ESFilterOperationConstant.FUNCTION_STATISTICS_NORM:
+                break;
+            default:
+                break;
+        }
+
+        return strScript.toString();
     }
 
     private String generateArithmeticFunctionScript(String strField, String newFieldName,
@@ -1664,7 +1757,7 @@ public class ElasticConnection {
         if (objPrepAction instanceof ESPrepFieldModel) {
             strNewFieldName = strNewField;
             List<ESFieldModel> lstField = getFieldsMetaData(objPrepAction.getIndex(), objPrepAction.getType(),
-                    new ArrayList<>(Arrays.asList(strOldField)));
+                    new ArrayList<>(Arrays.asList(strOldField)), true);
 
             strNewFieldType = lstField.get(0).getType();
         }
@@ -1674,7 +1767,7 @@ public class ElasticConnection {
             strNewFieldName = objFormat.getNew_field_name();
 
             List<ESFieldModel> lstField = getFieldsMetaData(objFormat.getIndex(), objFormat.getType(),
-                    new ArrayList<>(Arrays.asList(objFormat.getField())));
+                    new ArrayList<>(Arrays.asList(objFormat.getField())), true);
 
             strNewFieldType = lstField.get(0).getType();
         }
@@ -2481,11 +2574,14 @@ public class ElasticConnection {
         return bIsCreated;
     }
 
-    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate) {
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel) {
         Boolean bIsInserted = false;
 
         try {
-            createIndex(strIndex, strType, lstData, strFieldDate, null, false);
+            if (lstFieldModel == null) {
+                createIndex(strIndex, strType, lstData, strFieldDate, null, false);
+                lstFieldModel = getFieldsMetaData(strIndex, strType, null, false);
+            }
 
             if (objESClient != null) {
                 ObjectMapper objCurrentMapper = new ObjectMapper();
@@ -2501,22 +2597,24 @@ public class ElasticConnection {
                         if (objData instanceof HashMap) {
                             HashMap<String, Object> mapOriginal = (HashMap<String, Object>)objData;
 
-//                            mapOriginal = mapOriginal.entrySet().stream()
-//                                    .collect(Collectors.toMap(item -> item.getKey(), item -> JacksonFilter.convertNAString(item.getValue().toString()), (k, v) -> k, LinkedHashMap::new));
+                            mapOriginal = ConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
 
-                            if (mapOriginal.entrySet().stream().filter(item -> item.getKey().contains(".")).count() > 0) {
-                                HashMap<String, Object> mapNew = new HashMap<>();
-
-                                for (Map.Entry<String, Object> item : mapOriginal.entrySet()) {
-                                    mapNew.put(item.getKey().replace(".", "-"), item.getValue());
-                                }
-
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                        .source(objCurrentMapper.writeValueAsString(mapNew), XContentType.JSON));
-                            } else {
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
-                            }
+                            objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
+                                    .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
+//
+//                            if (mapOriginal.entrySet().stream().filter(item -> item.getKey().contains(".")).count() > 0) {
+//                                HashMap<String, Object> mapNew = new HashMap<>();
+//
+//                                for (Map.Entry<String, Object> item : mapOriginal.entrySet()) {
+//                                    mapNew.put(item.getKey().replace(".", "-"), item.getValue());
+//                                }
+//
+//                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
+//                                        .source(objCurrentMapper.writeValueAsString(mapNew), XContentType.JSON));
+//                            } else {
+//                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
+//                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+//                            }
                         } else {
                             objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
                                     .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
@@ -2572,12 +2670,12 @@ public class ElasticConnection {
         return lstIndices;
     }
 
-    public List<ESFieldModel> getFieldsMetaData(String strIndex, String strType, List<String> lstField) {
+    public List<ESFieldModel> getFieldsMetaData(String strIndex, String strType, List<String> lstField, Boolean bIsCheckNull) {
         List<ESFieldModel> lstReturnField = new ArrayList<>();
 
         try {
             Map<String, Map<String, List<ESFieldModel>>> mapField = getFieldsOfIndices(Arrays.asList(strIndex),
-                    Arrays.asList(strType), lstField);
+                    Arrays.asList(strType), lstField, bIsCheckNull);
 
             if (mapField != null && mapField.containsKey(strIndex) && mapField.get(strIndex) != null
                     && mapField.get(strIndex).get(strType) != null) {
@@ -3355,7 +3453,8 @@ public class ElasticConnection {
 
                     if ((objPrepOp instanceof  ESPrepFormatModel)
                             || (objPrepOp instanceof ESPrepDataTypeChangeModel)
-                            || (objPrepOp instanceof ESPrepFunctionArithmeticModel)) {
+                            || (objPrepOp instanceof ESPrepFunctionArithmeticModel)
+                            || (objPrepOp instanceof ESPrepFunctionStatisticModel)) {
                         bIsPrepAll = prepBulkAction(strCurIndex, objPrepOp.getType(), objPrepOp, intNumBulkOperation);
 
                         if (!bIsPrepAll) {
