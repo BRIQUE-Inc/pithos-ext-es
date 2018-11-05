@@ -16,10 +16,11 @@ public class ESFilterConverterUtil {
     private static Logger objLogger = LoggerFactory.getLogger(ESFilterConverterUtil.class);
 
     public static List<Object> createBooleanQueryBuilders(List<ESFilterRequestModel> lstESFilterRequest,
-                                                          List<ESFieldModel> lstFields, List<String> lstDeletedRows) {
+                                                          List<ESFieldModel> lstFields, List<String> lstDeletedRows, Boolean bIsReversedFilter) {
         List<Object> lstResult = new ArrayList<>();
 
         BoolQueryBuilder objBoolQueryBuilder = new BoolQueryBuilder();
+        BoolQueryBuilder objReversedBoolQueryBuilder = new BoolQueryBuilder();
         List<ESFilterRequestModel> lstNotAddedESFilterRequest = new ArrayList<>();
 
         try {
@@ -33,11 +34,20 @@ public class ESFilterConverterUtil {
                     lstNotAddedESFilterRequest.add(lstESFilterRequest.get(intCount));
                 }
             }
+
+            if (bIsReversedFilter) {
+                objReversedBoolQueryBuilder.mustNot(objBoolQueryBuilder);
+            }
         } catch (Exception objEx) {
             objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
 
-        lstResult.add(objBoolQueryBuilder);
+        if (!bIsReversedFilter) {
+            lstResult.add(objBoolQueryBuilder);
+        } else {
+            lstResult.add(objReversedBoolQueryBuilder);
+        }
+
         lstResult.add(lstNotAddedESFilterRequest);
 
         return lstResult;

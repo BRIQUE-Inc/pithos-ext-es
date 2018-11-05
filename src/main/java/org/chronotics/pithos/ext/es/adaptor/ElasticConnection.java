@@ -307,6 +307,8 @@ public class ElasticConnection {
                             ? objFilterAllRequest.getFilters()
                             : new ArrayList<ESFilterRequestModel>();
 
+                    Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
+
                     objLogger.info("lstSelectedField: " + lstSelectedField);
 
                     if (lstSelectedField == null || lstSelectedField.size() <= 0) {
@@ -328,11 +330,11 @@ public class ElasticConnection {
                         if (objFilterAllRequest != null) {
                             objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
                                     new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                    lstFilters, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
+                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
                         } else {
                             objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
                                     new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                    lstFilters, intFromRow, intNumRow, lstFieldModel, new ArrayList<>());
+                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, new ArrayList<>());
                         }
 
                         lstSourceField.add("_id");
@@ -442,7 +444,7 @@ public class ElasticConnection {
 
     @SuppressWarnings("unchecked")
     private SearchResponse getResponseDataFromQuery(String[] arrIndex, String[] arrType, String[] arrSource,
-                                                    List<ESFilterRequestModel> lstFilterRequest, Integer intFrom, Integer intSize,
+                                                    List<ESFilterRequestModel> lstFilterRequest, Boolean bIsReversedFilter, Integer intFrom, Integer intSize,
                                                     List<ESFieldModel> lstFieldModel, List<String> lstDeletedRows) {
         SearchResponse objSearchResponse = new SearchResponse();
 
@@ -454,7 +456,7 @@ public class ElasticConnection {
             objSearchSourceBuilder.size(intSize).from(intFrom).sort("_doc");
 
             if (lstFilterRequest != null && lstFilterRequest.size() > 0) {
-                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilterRequest, lstFieldModel, lstDeletedRows);
+                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilterRequest, lstFieldModel, lstDeletedRows, bIsReversedFilter);
                 BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
 
                 List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);

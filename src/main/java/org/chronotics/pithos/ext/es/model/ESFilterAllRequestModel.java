@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ESFilterAllRequestModel {
-    Boolean is_reversed;
+    Boolean is_reversed = false;
     List<String> selected_fields = new ArrayList<>();
     List<String> deleted_rows = new ArrayList<>();
     List<ESFilterRequestModel> filters = new ArrayList<>();
