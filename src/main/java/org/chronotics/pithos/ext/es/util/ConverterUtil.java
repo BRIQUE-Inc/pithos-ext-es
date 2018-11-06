@@ -5,6 +5,7 @@ import org.chronotics.pithos.ext.es.model.ESFieldModel;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.DoubleBinaryOperator;
 import java.util.function.Function;
 
 public class ConverterUtil {
@@ -18,6 +19,10 @@ public class ConverterUtil {
     public static String convertDateToString(Date objDate, String strFormat) {
         SimpleDateFormat objSimpleDateFormat = new SimpleDateFormat(strFormat);
         return objSimpleDateFormat.format(objDate);
+    }
+
+    public static Double randomDouble(Random objRandom, Double dbMin, Double dbMax) {
+        return (dbMin + (dbMax - dbMin) * objRandom.nextDouble());
     }
 
     public static Long convertDateStringToMillis(String strDate, String strFormat) {

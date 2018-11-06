@@ -7,7 +7,7 @@ public class ESPrepFunctionSamplingModel extends ESPrepAbstractModel {
     List<String> new_fields;
     List<String> selected_fields;
     Long num_of_rows;
-    List<Double> defined_values; //num-of-row, replace | min,max,replace | step | num-of-row,mean,sd | num-of-row,min,max
+    List<Double> defined_values; //replace | min,max,replace | step | mean,sd | min,max
 
     public String getSampling_op() {
         return sampling_op;

@@ -33,11 +33,14 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.lucene.search.function.FunctionScoreQuery;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.*;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.index.reindex.ReindexRequestBuilder;
@@ -63,6 +66,7 @@ import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 
+import javax.print.Doc;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.InetAddress;
@@ -78,6 +82,7 @@ public class ElasticConnection {
     Integer intNumBulkOperation = 20000;
     TransportClient objESClient;
     private List<String> lstConvertedDataType = new ArrayList<>();
+    Random objRandom = new Random();
 
     public static ElasticConnection instance;
 
@@ -371,7 +376,7 @@ public class ElasticConnection {
         List<String> lstTextField = new ArrayList<>();
 
         lstNumericField = lstFieldModel.stream()
-                .filter(objField -> !objField.getType().equals("text") && !objField.getType().equals("keyword") && !objField.getType().equals("date")  && lstNotAddedFieldName.contains(objField.getFull_name()))
+                .filter(objField -> !objField.getType().equals("text") && !objField.getType().equals("keyword") && !objField.getType().equals("date") && lstNotAddedFieldName.contains(objField.getFull_name()))
                 .map(objField -> objField.getFull_name())
                 .collect(Collectors.toList());
 
@@ -505,17 +510,10 @@ public class ElasticConnection {
 
         try {
             if (objESClient != null) {
-                Long lTotalHit = 0L;
+                Long lTotalHit = getTotalHit(strIndex, strType);
 
                 //Get Total Hit First
                 SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
-
-                MatchAllQueryBuilder objMatchAllQuery = new MatchAllQueryBuilder();
-                SearchResponse objSearchResponse = objSearchRequestBuilder.setQuery(objMatchAllQuery).get();
-
-                if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
-                    lTotalHit = objSearchResponse.getHits().getTotalHits();
-                }
 
                 for (int intCount = 0; intCount < lstField.size(); intCount++) {
                     String strField = lstField.get(intCount);
@@ -783,13 +781,11 @@ public class ElasticConnection {
         return lstAggResult;
     }
 
-    private Map<String, List<Double>> statsMismatchOfField(String strIndex, String strType, List<String> lstStringField) {
-        Map<String, List<Double>> mapStats = new HashMap<>();
+    private Long getTotalHit(String strIndex, String strType) {
+        Long lTotalHit = 0L;
 
         try {
-            if (objESClient != null && lstStringField != null && lstStringField.size() > 0) {
-                Long lTotalHit = 0L;
-
+            if (objESClient != null) {
                 //Check nullity
                 SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
@@ -803,6 +799,23 @@ public class ElasticConnection {
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
                     lTotalHit = objSearchResponse.getHits().getTotalHits();
                 }
+            }
+        } catch (Exception objEx) {
+            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return lTotalHit;
+    }
+
+    private Map<String, List<Double>> statsMismatchOfField(String strIndex, String strType, List<String> lstStringField) {
+        Map<String, List<Double>> mapStats = new HashMap<>();
+
+        try {
+            if (objESClient != null && lstStringField != null && lstStringField.size() > 0) {
+                Long lTotalHit = getTotalHit(strIndex, strType);
+
+                //Check nullity
+                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
 
                 if (lTotalHit > 0) {
                     for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
@@ -820,7 +833,7 @@ public class ElasticConnection {
 
                             objSearchRequestBuilder.setQuery(null);
 
-                            objSearchResponse = objSearchRequestBuilder.setQuery(objBooleanQuery).get();
+                            SearchResponse objSearchResponse = objSearchRequestBuilder.setQuery(objBooleanQuery).get();
 
                             if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
                                 Long lCurHit = objSearchResponse.getHits().getTotalHits();
@@ -1554,9 +1567,9 @@ public class ElasticConnection {
             if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
                 //Generate remove script field
                 if (objPrep.getRemove_fields() != null && objPrep.getRemove_fields().size() > 0) {
-                    for (String strField: objPrep.getRemove_fields()) {
+                    for (String strField : objPrep.getRemove_fields()) {
                         String[] multipleFields = strField.split(",");
-                        for (int i=0; i < multipleFields.length; i++) {
+                        for (int i = 0; i < multipleFields.length; i++) {
                             String strRemoveScript = "ctx._source.remove(\"" + multipleFields[i].trim() + "\")";
                             lstScript.add(strRemoveScript);
                         }
@@ -1621,7 +1634,7 @@ public class ElasticConnection {
                 ESFieldStatModel objStatField = null;
 
                 if (objPrep.getStatistic_op().equals(ESFilterOperationConstant.FUNCTION_STATISTICS_STANDARD)
-                    || objPrep.getStatistic_op().equals(ESFilterOperationConstant.FUNCTION_STATISTICS_NORM)) {
+                        || objPrep.getStatistic_op().equals(ESFilterOperationConstant.FUNCTION_STATISTICS_NORM)) {
                     Map<String, ESFieldStatModel> mapStat = statsField(objPrep.getIndex(), objPrep.getType(), Arrays.asList(objPrep.getSelected_field().get(0)), null, true);
 
                     if (mapStat != null && mapStat.containsKey(objPrep.getSelected_field().get(0))) {
@@ -1636,17 +1649,142 @@ public class ElasticConnection {
         return strScript;
     }
 
-    private void handleSimpleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+    private HashMap<String, ArrayList<Object>> handleSimpleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+        HashMap<String, ArrayList<Object>> mapGenerateValue = new HashMap<>();
+
         Long lNumOfRow = objPrep.getNum_of_rows();
+        List<Double> lstDefinedValue = objPrep.getDefined_values();
         List<String> lstSelectedField = objPrep.getSelected_fields();
 
-        if (lstSelectedField == null) {
+        if (lstDefinedValue != null && lstDefinedValue.size() > 0) {
+            if (lNumOfRow == -1) { //Number of rows = Number of documents
+                lNumOfRow = getTotalHit(objPrep.getIndex(), objPrep.getType());
+            }
 
-        } else if (lstSelectedField.size() == 1) {
+            if ((lstSelectedField == null || lstSelectedField.size() == 0) && lstDefinedValue.size() >= 3) {
+                //Random Sampling by Min and Max
+                Boolean bCanDuplicate = lstDefinedValue.get(0).equals(1.0) ? true : false;
+                Double dbMin = lstDefinedValue.get(1);
+                Double dbMax = lstDefinedValue.get(2);
 
-        } else if (lstSelectedField.size() > 1) {
+                ArrayList<Object> lstRandValue = new ArrayList<>();
 
+                for (long lCount = 0L; lCount < lNumOfRow; lCount++) {
+                    Double dbRand = ConverterUtil.randomDouble(objRandom, dbMin, dbMax);
+
+                    if (bCanDuplicate) {
+                        lstRandValue.add(dbRand);
+                    } else {
+                        while (lstRandValue.contains(dbRand)) {
+                            dbRand = ConverterUtil.randomDouble(objRandom, dbMin, dbMax);
+
+                            if (!lstRandValue.contains(dbRand)) {
+                                lstRandValue.add(dbRand);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                mapGenerateValue.put(objPrep.getNew_fields().get(0), lstRandValue);
+            } else if (lstSelectedField.size() == 1) {
+                ArrayList<Object> lstRandValue = new ArrayList<>();
+
+                //Random selected values from selected column
+                //Using scroll api to select random data
+                Long lTimeValue = 60000l;
+                SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                        .setSize(intNumBulkOperation);
+
+                SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
+                objSourceBuilder.query(QueryBuilders.functionScoreQuery(QueryBuilders.matchAllQuery(), ScoreFunctionBuilders.randomFunction()));
+                objSourceBuilder.fetchSource(lstSelectedField.get(0), null);
+                objRequestBuilder.setSource(objSourceBuilder);
+
+                SearchResponse objSearchResponse = objRequestBuilder.get();
+
+                Long lCurNumHit = 0l;
+
+                do {
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+
+                        for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                            lCurNumHit += 1;
+                            Double dbValue = (Double) objHit.getSourceAsMap().get(lstSelectedField.get(0));
+                            lstRandValue.add(dbValue);
+
+                            if (lCurNumHit >= lNumOfRow) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (lCurNumHit >= lNumOfRow) {
+                        break;
+                    }
+                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0);
+
+                mapGenerateValue.put(objPrep.getNew_fields().get(0), lstRandValue);
+            } else if (lstSelectedField.size() > 1) {
+                //Random selected values' indices from 1st selected column and apply for other columns
+                //Random selected values from selected column
+                //Using scroll api to select random data
+                Long lTimeValue = 60000l;
+                SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                        .setSize(intNumBulkOperation);
+
+                SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
+                objSourceBuilder.query(QueryBuilders.functionScoreQuery(QueryBuilders.matchAllQuery(), ScoreFunctionBuilders.randomFunction()));
+                objSourceBuilder.fetchSource(lstSelectedField.toArray(new String[lstSelectedField.size()]), null);
+                objRequestBuilder.setSource(objSourceBuilder);
+
+                SearchResponse objSearchResponse = objRequestBuilder.get();
+
+                Long lCurNumHit = 0l;
+
+                do {
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+
+                        for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                            lCurNumHit += 1;
+
+                            for (int intCount = 0; intCount < lstSelectedField.size(); intCount++) {
+                                String strNewField = objPrep.getNew_fields().get(intCount);
+                                Double dbValue = (Double) objHit.getSourceAsMap().get(lstSelectedField.get(intCount));
+
+                                if (mapGenerateValue.containsKey(strNewField)) {
+                                    mapGenerateValue.get(strNewField).add(dbValue);
+                                } else {
+                                    mapGenerateValue.put(strNewField, new ArrayList<>(Arrays.asList(dbValue)));
+                                }
+                            }
+
+                            if (lCurNumHit >= lNumOfRow) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (lCurNumHit >= lNumOfRow) {
+                        break;
+                    }
+                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0);
+            }
         }
+
+        return mapGenerateValue;
     }
 
     private void handleSystematicSamplingAction(ESPrepFunctionSamplingModel objPrep) {
@@ -1657,20 +1795,114 @@ public class ElasticConnection {
 
     }
 
-    private void handleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
-        switch (objPrep.getSampling_op()) {
-            case ESFilterOperationConstant.FUNCTION_SAMPLING_SIMPLE:
-                handleSimpleSamplingAction(objPrep);
-                break;
-            case ESFilterOperationConstant.FUNCTION_SAMPLING_SYSTEMATIC:
-                handleSystematicSamplingAction(objPrep);
-                break;
-            case ESFilterOperationConstant.FUNCTION_SAMPLING_DISTRIBUTION:
-                handleDistributionSamplingAction(objPrep);
-                break;
-            case ESFilterOperationConstant.FUNCTION_SAMPLING_SMOTE:
-                break;
+    private Boolean handleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+        //0. Create new field
+        Boolean bIsFinish = false;
+
+        if (objPrep != null && objPrep.getIndex() != null && objPrep.getType() != null) {
+            for (int intCount = 0; intCount < objPrep.getNew_fields().size(); intCount++) {
+                List<String> lstNewFieldInfo = getNewFieldFromAction(objPrep,
+                        objPrep.getNew_fields().get(intCount),
+                        objPrep.getNew_fields().get(intCount));
+
+                if (lstNewFieldInfo != null && lstNewFieldInfo.size() == 2) {
+                    Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
+                            = createNewMappingField(lstNewFieldInfo.get(1), lstNewFieldInfo.get(0));
+                    PutMappingResponse objPutMappingResponse = null;
+
+                    try {
+                        objPutMappingResponse = objESClient.admin().indices().preparePutMapping(objPrep.getIndex())
+                                .setType(objPrep.getType())
+                                .setSource(objMapper.writeValueAsString(mapFieldProperties), XContentType.JSON).get();
+                    } catch (JsonProcessingException e) {
+                        e.printStackTrace();
+                    }
+
+                    if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
+                        try {
+                            bIsFinish = true;
+                        } catch (Exception objEx) {
+                            bIsFinish = false;
+                        }
+                    } else {
+                        bIsFinish = false;
+                    }
+                }
+            }
         }
+
+        if (bIsFinish) {
+            //1. Scroll all rows
+            Long lTimeValue = 60000l;
+
+            SearchResponse objSearchResponse = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .setSize(intNumBulkOperation).get();
+
+            Long lCurNumHit = 0L;
+            Long lTotalHit = 0L;
+            Long lCurUpdateHit = 0L;
+
+            HashMap<String, ArrayList<Object>> mapSamplingValue = new HashMap<>();
+
+            if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_SIMPLE)) {
+                mapSamplingValue = handleSimpleSamplingAction(objPrep);
+            }
+
+            do {
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    lTotalHit = objSearchResponse.getHits().getTotalHits();
+                    lCurNumHit += objSearchResponse.getHits().getHits().length;
+
+                    try {
+                        //2. With each scroll time, bulk update
+                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
+
+                        if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_SIMPLE)) {
+                            for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                                for (Map.Entry<String, ArrayList<Object>> item : mapSamplingValue.entrySet()) {
+                                    if (item.getValue().size() > lCurUpdateHit) {
+                                        String strScript = "ctx._source" + ConverterUtil.convertDashField(item.getKey()) + " = " + Double.valueOf(item.getValue().get(lCurUpdateHit.intValue()).toString());
+
+                                        UpdateRequest objUpdateRequest = new UpdateRequest(objPrep.getIndex(), objPrep.getType(), objHit.getId());
+                                        objUpdateRequest.script(new Script(strScript));
+
+                                        objBulkProcessor.add(objUpdateRequest);
+                                    }
+                                }
+
+                                lCurUpdateHit += 1;
+                            }
+                        }
+
+                        objBulkProcessor.flush();
+                        objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
+                    } catch (Exception objEx) {
+                        bIsFinish = false;
+                        objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+
+                        break;
+                    }
+
+                    objLogger.info("Cur Hit: " + lCurNumHit);
+                    objLogger.info("Total Hits: " + lTotalHit);
+
+                    //3. Continue to scroll
+                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(lTimeValue)).get();
+                } else {
+                    break;
+                }
+            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0);
+        }
+
+        //3. Return
+        return bIsFinish;
     }
 
     private String generateStatisticFunctionScript(ESPrepFunctionStatisticModel objPrep, ESFieldStatModel objFieldStat) {
@@ -1828,8 +2060,8 @@ public class ElasticConnection {
             strNewFieldType = lstField.get(0).getType();
         }
 
-        if (objPrepAction instanceof  ESPrepFormatModel) {
-            ESPrepFormatModel objFormat = (ESPrepFormatModel)objPrepAction;
+        if (objPrepAction instanceof ESPrepFormatModel) {
+            ESPrepFormatModel objFormat = (ESPrepFormatModel) objPrepAction;
             strNewFieldName = objFormat.getNew_field_name();
 
             List<ESFieldModel> lstField = getFieldsMetaData(objFormat.getIndex(), objFormat.getType(),
@@ -1855,6 +2087,11 @@ public class ElasticConnection {
             ESPrepFunctionStatisticModel objPrep = (ESPrepFunctionStatisticModel) objPrepAction;
 
             strNewFieldName = objPrep.getNew_field_name();
+            strNewFieldType = "double";
+        }
+
+        if (objPrepAction instanceof ESPrepFunctionSamplingModel) {
+            strNewFieldName = strNewField;
             strNewFieldType = "double";
         }
 
@@ -1982,7 +2219,7 @@ public class ElasticConnection {
                 objSourceBuilder.size(0);
                 objRequestBuilder.setSource(objSourceBuilder);
 
-                for (String strField: lstField) {
+                for (String strField : lstField) {
                     objRequestBuilder.addAggregation(AggregationBuilders.filter(strField + "_null", QueryBuilders.existsQuery(strField)));
                 }
 
@@ -2021,8 +2258,8 @@ public class ElasticConnection {
     }
 
     private String generateChangeFieldDataTypeScript(String strField,
-                                              String newFieldName, String strConvertedDataType,
-                                              Boolean bIsForce, String strFailedDefaultValue, String strDateFormat) {
+                                                     String newFieldName, String strConvertedDataType,
+                                                     Boolean bIsForce, String strFailedDefaultValue, String strDateFormat) {
         String strPainlessScript = "";
         String strConvertScript = "";
         String strConvertCatchScript = "";
@@ -2097,7 +2334,7 @@ public class ElasticConnection {
 
         //0. Create new field
         if (objPrepFieldModel.getCopy_from_fields() != null && objPrepFieldModel.getCopy_to_fields() != null
-            && objPrepFieldModel.getCopy_from_fields().size() == objPrepFieldModel.getCopy_to_fields().size()) {
+                && objPrepFieldModel.getCopy_from_fields().size() == objPrepFieldModel.getCopy_to_fields().size()) {
             for (int intCount = 0; intCount < objPrepFieldModel.getCopy_from_fields().size(); intCount++) {
                 List<String> lstNewFieldInfo = getNewFieldFromAction(objPrepFieldModel,
                         objPrepFieldModel.getCopy_from_fields().get(intCount),
@@ -2501,10 +2738,10 @@ public class ElasticConnection {
                     Integer intCheck = 0;
 
                     if (lstData.get(0) instanceof HashMap) {
-                        Long lTotalData = (long)lstData.size();
+                        Long lTotalData = (long) lstData.size();
                         Long lCurData = 0l;
                         for (int intCount = 0; intCount < lstData.size(); intCount++) {
-                            HashMap<String, Object> mapCur = (HashMap<String, Object>)lstData.get(0);
+                            HashMap<String, Object> mapCur = (HashMap<String, Object>) lstData.get(0);
 
                             Long lTotalNull = mapCur.entrySet().stream().filter(objItem -> objItem.getValue() == null).count();
 
@@ -2575,7 +2812,7 @@ public class ElasticConnection {
 
                             //If type is not keyword or date, recheck again with whole data, if contain NA => type is keyword
                             if (!objMappingField.getType().equals("keyword") && !objMappingField.getType().equals("date") && bIsHashMap) {
-                                Long lTotalNA = lstData.stream().map(objItem -> ((HashMap<String,Object>)objItem).get(curItem.getKey()))
+                                Long lTotalNA = lstData.stream().map(objItem -> ((HashMap<String, Object>) objItem).get(curItem.getKey()))
                                         .filter(item -> JacksonFilter.checkNAString(item.toString())).count();
 
                                 if (lTotalNA > 0) {
@@ -2664,7 +2901,7 @@ public class ElasticConnection {
                         Object objData = lstData.get(intCount);
 
                         if (objData instanceof HashMap) {
-                            HashMap<String, Object> mapOriginal = (HashMap<String, Object>)objData;
+                            HashMap<String, Object> mapOriginal = (HashMap<String, Object>) objData;
 
                             mapOriginal = ConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
 
@@ -3520,7 +3757,15 @@ public class ElasticConnection {
                         }
                     }
 
-                    if ((objPrepOp instanceof  ESPrepFormatModel)
+                    if (objPrepOp instanceof ESPrepFunctionSamplingModel) {
+                        bIsPrepAll = handleSamplingAction((ESPrepFunctionSamplingModel) objPrepOp);
+
+                        if (!bIsPrepAll) {
+                            break;
+                        }
+                    }
+
+                    if ((objPrepOp instanceof ESPrepFormatModel)
                             || (objPrepOp instanceof ESPrepDataTypeChangeModel)
                             || (objPrepOp instanceof ESPrepFunctionArithmeticModel)
                             || (objPrepOp instanceof ESPrepFunctionStatisticModel)) {
