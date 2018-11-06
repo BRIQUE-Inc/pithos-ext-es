@@ -182,6 +182,15 @@ public class ElasticConnection {
 
             @Override
             public void afterBulk(long l, BulkRequest bulkRequest, BulkResponse bulkResponse) {
+                if (bulkResponse.hasFailures()) {
+                    for (int i = 0; i < bulkResponse.getItems().length; i++) {
+                        if (false == bulkResponse.getItems()[i].isFailed()) {
+                            continue;
+                        }
+                        objLogger.error("ERR: [" + bulkRequest.requests().get(i) +  "]: [" + ExceptionUtil.getStrackTrace(bulkResponse.getItems()[i].getFailure().getCause()) + "]");
+                    }
+                }
+
                 objLogger.info("INFO: After Bulk - " + String.valueOf(l) + " - "
                         + bulkRequest.numberOfActions());
             }
@@ -1787,12 +1796,94 @@ public class ElasticConnection {
         return mapGenerateValue;
     }
 
-    private void handleSystematicSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+    private HashMap<String, ArrayList<Object>> handleSystematicSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+        HashMap<String, ArrayList<Object>> mapGenerateValue = new HashMap<>();
 
+        Long lNumOfRow = getTotalHit(objPrep.getIndex(), objPrep.getType());
+        List<Double> lstDefinedValue = objPrep.getDefined_values();
+        List<String> lstSelectedField = objPrep.getSelected_fields();
+
+        if (lstDefinedValue != null && lstDefinedValue.size() >= 1 && lstSelectedField != null && lstSelectedField.size() == 1) {
+            //Random Sampling by Min and Max
+            Double dbStep = lstDefinedValue.get(0);
+            dbStep = dbStep <= 0 ? 1 : dbStep;
+
+            ArrayList<Object> lstRandValue = new ArrayList<>();
+            //Random selected values from selected column
+            //Using scroll api to select random data
+            Long lTimeValue = 60000l;
+            SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .setSize(intNumBulkOperation);
+
+            SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
+            objSourceBuilder.query(QueryBuilders.functionScoreQuery(QueryBuilders.matchAllQuery(), ScoreFunctionBuilders.randomFunction()));
+            objSourceBuilder.fetchSource(lstSelectedField.get(0), null);
+            objRequestBuilder.setSource(objSourceBuilder);
+
+            SearchResponse objSearchResponse = objRequestBuilder.get();
+            Long lTotalHit = getTotalHit(objPrep.getIndex(), objPrep.getType());
+            Long lCurNumHit = 0L;
+
+            do {
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    lCurNumHit += objSearchResponse.getHits().getHits().length;
+
+                    for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
+                        Double dbValue = (Double) objHit.getSourceAsMap().get(lstSelectedField.get(0));
+                        lstRandValue.add(dbValue);
+                    }
+
+                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(lTimeValue)).get();
+                } else {
+                    break;
+                }
+            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0);
+
+            ArrayList<Object> lstFinal = new ArrayList<>();
+
+            for (long lCount = 0L; lCount < lstRandValue.size(); lCount+= dbStep.longValue()) {
+                lstFinal.add(lstRandValue.get((int)lCount));
+            }
+
+            mapGenerateValue.put(objPrep.getNew_fields().get(0), lstFinal);
+        }
+
+        return mapGenerateValue;
     }
 
-    private void handleDistributionSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+    private HashMap<String, ArrayList<Object>> handleDistributionSamplingAction(ESPrepFunctionSamplingModel objPrep) {
+        HashMap<String, ArrayList<Object>> mapGenerateValue = new HashMap<>();
 
+        Long lNumOfRow = getTotalHit(objPrep.getIndex(), objPrep.getType());
+        List<Double> lstDefinedValue = objPrep.getDefined_values();
+        List<String> lstSelectedField = objPrep.getSelected_fields();
+
+        if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_DIST_GAUSSIAN)) {
+            if (lstDefinedValue != null && lstDefinedValue.size() >= 2) {
+                Double dbMean = lstDefinedValue.get(0);
+                Double dbSd = lstDefinedValue.get(1);
+                ArrayList<Object> lstFinal = new ArrayList<>(MathUtil.getGaussianDistribution(dbMean, dbSd, lNumOfRow));
+
+                mapGenerateValue.put(objPrep.getNew_fields().get(0), lstFinal);
+            }
+        } else if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_DIST_CONTINUOUS)) {
+            if (lstDefinedValue != null && lstDefinedValue.size() >= 2) {
+                Double dbMin = lstDefinedValue.get(0);
+                Double dbMax = lstDefinedValue.get(1);
+                ArrayList<Object> lstFinal = new ArrayList<>(MathUtil.getContinuousUniformDistribution(dbMin, dbMax, lNumOfRow));
+
+                mapGenerateValue.put(objPrep.getNew_fields().get(0), lstFinal);
+            }
+        }
+
+        return mapGenerateValue;
     }
 
     private Boolean handleSamplingAction(ESPrepFunctionSamplingModel objPrep) {
@@ -1847,25 +1938,30 @@ public class ElasticConnection {
 
             if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_SIMPLE)) {
                 mapSamplingValue = handleSimpleSamplingAction(objPrep);
+            } else if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_SYSTEMATIC)) {
+                mapSamplingValue = handleSystematicSamplingAction(objPrep);
+            } else if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_DIST_GAUSSIAN)
+                        || objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_DIST_CONTINUOUS)) {
+                mapSamplingValue = handleDistributionSamplingAction(objPrep);
             }
 
-            do {
-                if (objSearchResponse != null && objSearchResponse.getHits() != null
-                        && objSearchResponse.getHits().getTotalHits() > 0
-                        && objSearchResponse.getHits().getHits() != null
-                        && objSearchResponse.getHits().getHits().length > 0) {
-                    lTotalHit = objSearchResponse.getHits().getTotalHits();
-                    lCurNumHit += objSearchResponse.getHits().getHits().length;
+            if (mapSamplingValue != null && mapSamplingValue.size() > 0) {
+                do {
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+                        lTotalHit = objSearchResponse.getHits().getTotalHits();
+                        lCurNumHit += objSearchResponse.getHits().getHits().length;
 
-                    try {
-                        //2. With each scroll time, bulk update
-                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
+                        try {
+                            //2. With each scroll time, bulk update
+                            BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intNumBulkOperation);
 
-                        if (objPrep.getSampling_op().equals(ESFilterOperationConstant.FUNCTION_SAMPLING_SIMPLE)) {
                             for (SearchHit objHit : objSearchResponse.getHits().getHits()) {
                                 for (Map.Entry<String, ArrayList<Object>> item : mapSamplingValue.entrySet()) {
-                                    if (item.getValue().size() > lCurUpdateHit) {
-                                        String strScript = "ctx._source" + ConverterUtil.convertDashField(item.getKey()) + " = " + Double.valueOf(item.getValue().get(lCurUpdateHit.intValue()).toString());
+                                    if (item.getValue() != null && item.getValue().size() > lCurUpdateHit) {
+                                        String strScript = "ctx._source" + ConverterUtil.convertDashField(item.getKey()) + " = " + item.getValue().get(lCurUpdateHit.intValue()).toString();
 
                                         UpdateRequest objUpdateRequest = new UpdateRequest(objPrep.getIndex(), objPrep.getType(), objHit.getId());
                                         objUpdateRequest.script(new Script(strScript));
@@ -1876,29 +1972,29 @@ public class ElasticConnection {
 
                                 lCurUpdateHit += 1;
                             }
+
+                            objBulkProcessor.flush();
+                            objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
+                        } catch (Exception objEx) {
+                            bIsFinish = false;
+                            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+
+                            break;
                         }
 
-                        objBulkProcessor.flush();
-                        objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
-                    } catch (Exception objEx) {
-                        bIsFinish = false;
-                        objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                        objLogger.info("Cur Hit: " + lCurNumHit);
+                        objLogger.info("Total Hits: " + lTotalHit);
 
+                        //3. Continue to scroll
+                        objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                .setScroll(new TimeValue(lTimeValue)).get();
+                    } else {
                         break;
                     }
-
-                    objLogger.info("Cur Hit: " + lCurNumHit);
-                    objLogger.info("Total Hits: " + lTotalHit);
-
-                    //3. Continue to scroll
-                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                            .setScroll(new TimeValue(lTimeValue)).get();
-                } else {
-                    break;
-                }
-            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
-                    && objSearchResponse.getHits().getHits() != null
-                    && objSearchResponse.getHits().getHits().length > 0);
+                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0);
+            }
         }
 
         //3. Return
@@ -2858,10 +2954,10 @@ public class ElasticConnection {
                             if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
                                 try {
                                     HashMap<String, Object> mapSettings = new HashMap<>();
-                                    mapSettings.put("script.max_compilations_per_minute", 1000000);
+                                    mapSettings.put("script.max_compilations_rate", "10000/1m");
                                     //ClusterUpdateSettingsRequestBuilder objBuilder = Settings.builder().put("script.max_compilations_per_minute", 1000000);
                                     //objESClient.admin().indices().prepareUpdateSettings().setIndex(strIndex).setType(strType).setDoc("{\"transient.script.max_compilations_per_minute\" : 1000000}", XContentType.JSON).get();
-                                    //objESClient.admin().cluster().prepareUpdateSettings().setTransientSettings(mapSettings).get();
+                                    objESClient.admin().cluster().prepareUpdateSettings().setTransientSettings(mapSettings).get();
                                     //objESClient.admin().indices().prepareUpdateSettings(strIndex).setSettings(mapSettings).get();
                                 } catch (Exception objEx) {
                                     objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));

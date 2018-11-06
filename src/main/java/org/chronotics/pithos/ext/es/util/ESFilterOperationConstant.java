@@ -88,7 +88,8 @@ public class ESFilterOperationConstant {
 
     public static final String FUNCTION_SAMPLING_SIMPLE = "Simple";
     public static final String FUNCTION_SAMPLING_SYSTEMATIC = "Systematic";
-    public static final String FUNCTION_SAMPLING_DISTRIBUTION = "Distribution";
+    public static final String FUNCTION_SAMPLING_DIST_GAUSSIAN = "Gaussian_Distribution";
+    public static final String FUNCTION_SAMPLING_DIST_CONTINUOUS = "Continuous_Uniform_Distribution";
     public static final String FUNCTION_SAMPLING_SMOTE = "SMOTE";
 
     public static final String FUNCTION_TRANSFORM_LAPLACE = "Laplace";
