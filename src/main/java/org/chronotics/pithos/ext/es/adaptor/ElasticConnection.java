@@ -859,15 +859,11 @@ public class ElasticConnection {
                 List<String> lstCombineField = new ArrayList<>();
 
                 if (lstNumberField != null && lstNumberField.size() > 0) {
-                    for (int intCount = 0; intCount < lstNumberField.size(); intCount++) {
-                        lstCombineField.add(lstNumberField.get(intCount));
-                    }
+                    lstCombineField.addAll(lstNumberField);
                 }
 
                 if (lstStringField != null && lstStringField.size() > 0) {
-                    for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
-                        lstCombineField.add(lstStringField.get(intCount));
-                    }
+                    lstCombineField.addAll(lstStringField);
                 }
 
                 Map<String, List<Double>> mapNullStats = statsNullityOfField(strIndex, strType, lstCombineField);
