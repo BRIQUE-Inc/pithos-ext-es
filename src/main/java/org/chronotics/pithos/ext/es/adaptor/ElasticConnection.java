@@ -3008,7 +3008,7 @@ public class ElasticConnection {
         Boolean bIsInserted = false;
 
         try {
-            if (lstFieldModel == null) {
+            if (lstFieldModel == null || lstFieldModel.size() <= 0) {
                 createIndex(strIndex, strType, lstData, strFieldDate, null, false);
                 lstFieldModel = getFieldsMetaData(strIndex, strType, null, false);
             }
