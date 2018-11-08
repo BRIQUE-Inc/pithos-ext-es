@@ -74,6 +74,7 @@ public class ESFilterOperationConstant {
     public static final String FUNCTION_ARITHMETIC_TAN = "Tan";
     public static final String FUNCTION_ARITHMETIC_LOG = "Log";
     public static final String FUNCTION_ARITHMETIC_LOG10 = "Log10";
+    public static final String FUNCTION_ARITHMETIC_FORMULA = "Formula";
 
     public static final String FUNCTION_STATISTICS_MEAN = "Mean";
     public static final String FUNCTION_STATISTICS_MEDIAN = "Median";

@@ -2,10 +2,6 @@ package org.chronotics.pithos.ext.es.util;
 
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.distribution.UniformRealDistribution;
-import weka.classifiers.Evaluation;
-import weka.classifiers.lazy.IBk;
-import weka.classifiers.meta.FilteredClassifier;
-import weka.filters.supervised.instance.SMOTE;
 
 import java.util.ArrayList;
 import java.util.Arrays;

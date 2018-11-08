@@ -72,6 +72,8 @@ import java.io.FileWriter;
 import java.net.InetAddress;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ElasticConnection {
@@ -2094,8 +2096,13 @@ public class ElasticConnection {
                                                     String strArithmeticOperation, String strArithmeticParam1, String strArithmeticParam2) {
         String strFormatScript = "";
 
-        strField = ConverterUtil.convertDashField(strField);
-        newFieldName = ConverterUtil.convertDashField(newFieldName);
+        if (strField != null && !strField.isEmpty()) {
+            strField = ConverterUtil.convertDashField(strField);
+        }
+
+        if (newFieldName != null && !newFieldName.isEmpty()) {
+            newFieldName = ConverterUtil.convertDashField(newFieldName);
+        }
 
         // TODO for unary operation, the calculation is based on the strField, and newFieldName
         switch (strArithmeticOperation) {
@@ -2138,6 +2145,27 @@ public class ElasticConnection {
             case ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10:
                 strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
                         .append(" = Math.log10(ctx._source").append(strField).append(")").toString();
+                break;
+            case ESFilterOperationConstant.FUNCTION_ARITHMETIC_FORMULA: //Ex: #sin($val$) * ($wind$ + $temp$)
+                String strFormula = strArithmeticParam1;
+                strFormula = strFormula.replace("#", "Math.");
+                HashMap<String, String> mapField = new HashMap<>();
+
+                Pattern objFieldPattern = Pattern.compile("(\\$)([^\\$]+)(\\$)");
+                Matcher objMatcher = objFieldPattern.matcher(strFormula);
+
+                while (objMatcher.find()) {
+                    String strFoundField = objMatcher.group();
+                    mapField.put(strFoundField, "ctx._source" + ConverterUtil.convertDashField(strFoundField.replace("$", "")));
+                }
+
+                for (Map.Entry<String, String> itemField : mapField.entrySet()) {
+                    strFormula = strFormula.replace(itemField.getKey(), itemField.getValue());
+                }
+
+                strFormatScript = new StringBuilder().append("ctx._source").append(newFieldName)
+                        .append(" = ").append(strFormula).toString();
+
                 break;
         }
 
@@ -3185,6 +3213,12 @@ public class ElasticConnection {
         objPrepAction = new ESPrepActionModel();
         objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10);
         objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_LOG10);
+        objPrepAction.setIs_show(true);
+        lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
+
+        objPrepAction = new ESPrepActionModel();
+        objPrepAction.setAction_id(ESFilterOperationConstant.FUNCTION_ARITHMETIC_FORMULA);
+        objPrepAction.setAction_name(ESFilterOperationConstant.FUNCTION_ARITHMETIC_FORMULA);
         objPrepAction.setIs_show(true);
         lstFunctionAction.add(new ESPrepActionModel(objPrepAction));
 
