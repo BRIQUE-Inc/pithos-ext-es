@@ -3004,7 +3004,7 @@ public class ElasticConnection {
         return bIsCreated;
     }
 
-    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel) {
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix) {
         Boolean bIsInserted = false;
 
         try {
@@ -3029,22 +3029,13 @@ public class ElasticConnection {
 
                             mapOriginal = ConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
 
-                            objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                    .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
-//
-//                            if (mapOriginal.entrySet().stream().filter(item -> item.getKey().contains(".")).count() > 0) {
-//                                HashMap<String, Object> mapNew = new HashMap<>();
-//
-//                                for (Map.Entry<String, Object> item : mapOriginal.entrySet()) {
-//                                    mapNew.put(item.getKey().replace(".", "-"), item.getValue());
-//                                }
-//
-//                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-//                                        .source(objCurrentMapper.writeValueAsString(mapNew), XContentType.JSON));
-//                            } else {
-//                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-//                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
-//                            }
+                            if (bIsUsedAutoID) {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType)
+                                        .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
+                            } else {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strDocIdPrefix + "_" + strIndex + "_" + strType + "_" + intCount)
+                                        .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
+                            }
                         } else {
                             objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
                                     .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
@@ -3062,6 +3053,10 @@ public class ElasticConnection {
         }
 
         return bIsInserted;
+    }
+
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel) {
+        return insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, false, "");
     }
 
     public List<ESIndexModel> getAllIndices() {
