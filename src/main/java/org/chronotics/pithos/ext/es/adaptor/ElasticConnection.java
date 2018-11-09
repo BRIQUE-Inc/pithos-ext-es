@@ -3779,68 +3779,7 @@ public class ElasticConnection {
         }
     }
 
-//    public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize, ESFilterAllRequestModel objFilterAllRequest) {
-//        Boolean bIsExported = true;
-//
-//        try {
-//            if (objESClient != null) {
-//                if (new File(strFileName).exists()) {
-//                    new File(strFileName).delete();
-//                }
-//
-//                File objFileName = new File(strFileName);
-//                File objDir = objFileName.getParentFile();
-//
-//                if (!objDir.exists()) {
-//                    objDir.mkdirs();
-//                }
-//
-//                new File(strFileName).createNewFile();
-//
-//                FileWriter objFileWriter = new FileWriter(strFileName, true);
-//
-//                //Refresh index before export
-//                refreshIndex(strIndex);
-//
-//                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-//                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
-//                        .setSize(intPageSize).get();
-//
-//                do {
-//                    if (objSearchResponse != null && objSearchResponse.getHits() != null
-//                            && objSearchResponse.getHits().getTotalHits() > 0
-//                            && objSearchResponse.getHits().getHits() != null
-//                            && objSearchResponse.getHits().getHits().length > 0) {
-//                        Boolean bIsWriteCSV = writeESDataToCSVFile(objFileWriter, objSearchResponse, true);
-//
-//                        if (!bIsWriteCSV) {
-//                            bIsExported = false;
-//                            break;
-//                        }
-//                    }
-//
-//                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-//                            .setScroll(new TimeValue(60000)).get();
-//                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
-//                        && objSearchResponse.getHits().getHits() != null
-//                        && objSearchResponse.getHits().getHits().length > 0);
-//
-//                objFileWriter.flush();
-//                objFileWriter.close();
-//            }
-//        } catch (Exception objEx) {
-//            bIsExported = false;
-//            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-//        }
-//
-//        if (bIsExported) {
-//            return strFileName;
-//        } else {
-//            return "";
-//        }
-//    }
-
-    public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize) {
+    public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize, ESFilterAllRequestModel objFilterAllRequest) {
         Boolean bIsExported = true;
 
         try {
@@ -3863,7 +3802,36 @@ public class ElasticConnection {
                 //Refresh index before export
                 refreshIndex(strIndex);
 
+                List<ESFieldModel> lstFieldModel = getFieldsMetaData(strIndex, strType, null, false);
+
+                List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
+                        && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
+                        ? objFilterAllRequest.getFilters()
+                        : new ArrayList<ESFilterRequestModel>();
+
+                Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
+
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+
+                if (lstFilters != null && lstFilters.size() > 0) {
+                    List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilters, lstFieldModel, new ArrayList<>(), bIsReversedFilter);
+                    BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
+
+                    List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
+
+                    if (objQueryBuilder != null) {
+                        // Special case: to get value from UCL, LCL, must get statistic information first
+                        if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
+                            objQueryBuilder = generateAggQueryBuilder(strIndex, strType, objQueryBuilder,
+                                    lstNotAddedFilterRequest, lstFieldModel);
+                        }
+
+                        objSearchSourceBuilder.query(objQueryBuilder);
+                    }
+                }
+
                 SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                        .setSource(objSearchSourceBuilder)
                         .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
                         .setSize(intPageSize).get();
 
@@ -3899,6 +3867,10 @@ public class ElasticConnection {
         } else {
             return "";
         }
+    }
+
+    public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize) {
+        return exportESDataToCSV(strIndex, strType, strFileName, intPageSize, null);
     }
 
     public Boolean prepESData(List<ESPrepAbstractModel> lstPrepOp) {
