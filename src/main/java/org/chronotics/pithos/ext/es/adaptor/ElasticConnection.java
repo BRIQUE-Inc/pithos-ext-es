@@ -3024,6 +3024,8 @@ public class ElasticConnection {
                     for (int intCount = 0; intCount < lstData.size(); intCount++) {
                         Object objData = lstData.get(intCount);
 
+                        String strGenerateId = strDocIdPrefix + "_" + strIndex + "_" + strType + "_" + intCount;
+
                         if (objData instanceof HashMap) {
                             HashMap<String, Object> mapOriginal = (HashMap<String, Object>) objData;
 
@@ -3033,12 +3035,17 @@ public class ElasticConnection {
                                 objBulkProcessor.add(new IndexRequest(strIndex, strType)
                                         .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
                             } else {
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strDocIdPrefix + "_" + strIndex + "_" + strType + "_" + intCount)
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
                                         .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
                             }
                         } else {
-                            objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strIndex + "_" + strType + "_" + intCount)
-                                    .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                            if (bIsUsedAutoID) {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType)
+                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                            } else {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
+                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                            }
                         }
                     }
 
@@ -3771,6 +3778,67 @@ public class ElasticConnection {
             objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
     }
+
+//    public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize, ESFilterAllRequestModel objFilterAllRequest) {
+//        Boolean bIsExported = true;
+//
+//        try {
+//            if (objESClient != null) {
+//                if (new File(strFileName).exists()) {
+//                    new File(strFileName).delete();
+//                }
+//
+//                File objFileName = new File(strFileName);
+//                File objDir = objFileName.getParentFile();
+//
+//                if (!objDir.exists()) {
+//                    objDir.mkdirs();
+//                }
+//
+//                new File(strFileName).createNewFile();
+//
+//                FileWriter objFileWriter = new FileWriter(strFileName, true);
+//
+//                //Refresh index before export
+//                refreshIndex(strIndex);
+//
+//                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+//                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+//                        .setSize(intPageSize).get();
+//
+//                do {
+//                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+//                            && objSearchResponse.getHits().getTotalHits() > 0
+//                            && objSearchResponse.getHits().getHits() != null
+//                            && objSearchResponse.getHits().getHits().length > 0) {
+//                        Boolean bIsWriteCSV = writeESDataToCSVFile(objFileWriter, objSearchResponse, true);
+//
+//                        if (!bIsWriteCSV) {
+//                            bIsExported = false;
+//                            break;
+//                        }
+//                    }
+//
+//                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+//                            .setScroll(new TimeValue(60000)).get();
+//                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+//                        && objSearchResponse.getHits().getHits() != null
+//                        && objSearchResponse.getHits().getHits().length > 0);
+//
+//                objFileWriter.flush();
+//                objFileWriter.close();
+//            }
+//        } catch (Exception objEx) {
+//            bIsExported = false;
+//            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+//        }
+//
+//        if (bIsExported) {
+//            return strFileName;
+//        } else {
+//            return "";
+//        }
+//    }
 
     public String exportESDataToCSV(String strIndex, String strType, String strFileName, Integer intPageSize) {
         Boolean bIsExported = true;
