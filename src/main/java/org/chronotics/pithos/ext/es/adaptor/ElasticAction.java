@@ -1998,7 +1998,7 @@ public class ElasticAction {
                         HashMap<String, Object> mapData = lstDataWithoutID.get(intCount);
 
                         objBulkProcessor.add(new UpdateRequest(strIndex, strType, lstID.get(intCount))
-                                .upsert(objCurrentMapper.writeValueAsString(mapData), XContentType.JSON));
+                                .doc(objCurrentMapper.writeValueAsString(mapData), XContentType.JSON));
                     }
 
                     objBulkProcessor.flush();
