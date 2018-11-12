@@ -12,6 +12,7 @@ public class ElasticService {
     ElasticConnection objESConnection;
     ElasticFilter objESFilter;
     ElasticAction objESAction;
+    ElasticCluster objESCluster;
 
     public static ElasticService instance;
 
@@ -19,6 +20,7 @@ public class ElasticService {
         this.objESConnection = ElasticConnection.getInstance(strESClusterName, strESCoorNodeIP, intESCoorNodePort);
         this.objESFilter = new ElasticFilter(this.objESConnection);
         this.objESAction = new ElasticAction(this.objESConnection, this.objESFilter, intNumBulkAction);
+        this.objESCluster = new ElasticCluster(this.objESConnection);
     }
 
     public static ElasticService getInstance(String strESClusterName, String strESCoorNodeIP,
@@ -32,6 +34,10 @@ public class ElasticService {
         }
 
         return instance;
+    }
+
+    public void closeInstance() {
+        objESConnection.closeInstance();
     }
 
     /**
@@ -277,5 +283,13 @@ public class ElasticService {
      */
     public Boolean updateBulkData(String strIndex, String strType, List<?> lstData, String strIDField) {
         return objESAction.updateBulkData(strIndex, strType, lstData, strIDField);
+    }
+
+    /**
+     * Health Check Nodes' Statuses
+     * @return
+     */
+    public HashMap<String, Object> healthCheckNodes() {
+        return objESCluster.healthCheckNode();
     }
 }
