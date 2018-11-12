@@ -2014,6 +2014,65 @@ public class ElasticAction {
         return bIsUpdated;
     }
 
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strIDField, String strFieldDate, List<ESFieldModel> lstFieldModel) {
+        Boolean bIsInserted = false;
+
+        try {
+            if (lstFieldModel == null || lstFieldModel.size() <= 0) {
+                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false);
+                lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
+            }
+
+            if (objESClient != null && strIDField != null && !strIDField.isEmpty()) {
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, lstData.size());
+
+                if (objBulkProcessor != null) {
+                    List<String> lstID = new ArrayList<>();
+                    List<HashMap<String, Object>> lstDataWithoutID = new ArrayList<>();
+                    HashMap<String, Object> mapOriginal = new HashMap<>();
+
+                    for (int intCount = 0; intCount < lstData.size(); intCount++) {
+                        Object objData = lstData.get(intCount);
+
+                        if (objData instanceof HashMap) {
+                            mapOriginal = (HashMap<String, Object>) objData;
+                            mapOriginal = ConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
+                        } else {
+                            mapOriginal = objCurrentMapper.convertValue(objData, HashMap.class);
+                        }
+
+                        if (mapOriginal.containsKey(strIDField)) {
+                            lstID.add(mapOriginal.get(strIDField).toString());
+                            mapOriginal.remove(strIDField);
+
+                            lstDataWithoutID.add(mapOriginal);
+                        }
+                    }
+
+                    for (int intCount = 0; intCount < lstDataWithoutID.size(); intCount++) {
+                        HashMap<String, Object> mapData = lstDataWithoutID.get(intCount);
+
+                        objBulkProcessor.add(new IndexRequest(strIndex, strType).id(lstID.get(intCount))
+                                .source(objCurrentMapper.writeValueAsString(mapData), XContentType.JSON));
+                    }
+
+                    objBulkProcessor.flush();
+                    objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+
+                    bIsInserted = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return bIsInserted;
+    }
+
     public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix) {
         Boolean bIsInserted = false;
 

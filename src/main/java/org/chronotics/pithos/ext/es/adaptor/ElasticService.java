@@ -226,7 +226,7 @@ public class ElasticService {
     }
 
     /**
-     * Insert data to ElasticSearch with Bulk Mode and pre-defined ID (optinal)
+     * Insert data to ElasticSearch with Bulk Mode and pre-defined ID prefix (optinal)
      * @param strIndex
      * @param strType
      * @param lstData
@@ -238,6 +238,20 @@ public class ElasticService {
      */
     public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix) {
         return objESAction.insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix);
+    }
+
+    /**
+     * Insert data to ElasticSearch with BulkMode and pre-defined IDs
+     * @param strIndex
+     * @param strType
+     * @param lstData
+     * @param strIDField
+     * @param strFieldDate
+     * @param lstFieldModel
+     * @return
+     */
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strIDField, String strFieldDate, List<ESFieldModel> lstFieldModel) {
+        return objESAction.insertBulkData(strIndex, strType, lstData, strIDField, strFieldDate, lstFieldModel);
     }
 
     /**
@@ -253,6 +267,14 @@ public class ElasticService {
         return insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, false, "");
     }
 
+    /**
+     * Update data back to ElasticSearch
+     * @param strIndex
+     * @param strType
+     * @param lstData
+     * @param strIDField
+     * @return
+     */
     public Boolean updateBulkData(String strIndex, String strType, List<?> lstData, String strIDField) {
         return objESAction.updateBulkData(strIndex, strType, lstData, strIDField);
     }
