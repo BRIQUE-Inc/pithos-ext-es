@@ -261,6 +261,8 @@ public class ElasticConnection {
                     }
 
                     mapFields.put(strCurIndex, mapType);
+
+                    break;
                 }
             }
 
@@ -641,7 +643,8 @@ public class ElasticConnection {
         Boolean bIsExistsType = false;
 
         for (ESIndexModel objIndex : lstIndex) {
-            if (objIndex.getIndex_name().equals(strIndex)) {
+            if ((strIndex.contains("*") && objIndex.getIndex_name().contains(strIndex.replace("*", "")))
+                || (!strIndex.contains("*") && objIndex.getIndex_name().equals(strIndex))) {
                 bIsExistsIndex = true;
 
                 for (String strIndexType : objIndex.getIndex_types()) {
