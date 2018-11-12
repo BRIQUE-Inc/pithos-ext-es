@@ -2000,6 +2000,11 @@ public class ElasticAction {
                         objBulkProcessor.add(new UpdateRequest(strIndex, strType, lstID.get(intCount))
                                 .upsert(objCurrentMapper.writeValueAsString(mapData), XContentType.JSON));
                     }
+
+                    objBulkProcessor.flush();
+                    objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+
+                    bIsUpdated = true;
                 }
              }
         } catch (Exception objEx) {
