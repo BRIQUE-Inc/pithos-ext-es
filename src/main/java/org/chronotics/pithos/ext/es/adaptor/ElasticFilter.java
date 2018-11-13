@@ -1,9 +1,9 @@
 package org.chronotics.pithos.ext.es.adaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.chronotics.pandora.exception.ExceptionUtil;
-import org.chronotics.pandora.scala.log.Logger;
-import org.chronotics.pandora.scala.log.LoggerFactory;
+import org.chronotics.pandora.java.exception.ExceptionUtil;
+import org.chronotics.pandora.java.log.Logger;
+import org.chronotics.pandora.java.log.LoggerFactory;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.ESFilterConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterOperationConstant;
