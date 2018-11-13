@@ -1,7 +1,8 @@
 package org.chronotics.pithos.ext.es.util;
 
-import org.chronotics.pithos.ext.es.log.Logger;
-import org.chronotics.pithos.ext.es.log.LoggerFactory;
+import org.chronotics.pandora.exception.ExceptionUtil;
+import org.chronotics.pandora.log.Logger;
+import org.chronotics.pandora.log.LoggerFactory;
 import org.chronotics.pithos.ext.es.model.ESFieldModel;
 import org.chronotics.pithos.ext.es.model.ESFilterRequestModel;
 import org.elasticsearch.index.query.BoolQueryBuilder;

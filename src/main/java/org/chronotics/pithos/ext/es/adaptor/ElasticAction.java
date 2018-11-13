@@ -3,8 +3,12 @@ package org.chronotics.pithos.ext.es.adaptor;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.chronotics.pithos.ext.es.log.Logger;
-import org.chronotics.pithos.ext.es.log.LoggerFactory;
+import org.chronotics.pandora.converter.ConverterUtil;
+import org.chronotics.pandora.exception.ExceptionUtil;
+import org.chronotics.pandora.file.CSVUtil;
+import org.chronotics.pandora.log.Logger;
+import org.chronotics.pandora.log.LoggerFactory;
+import org.chronotics.pandora.math.MathUtil;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
@@ -2058,7 +2062,7 @@ public class ElasticAction {
 
                         if (objData instanceof HashMap) {
                             mapOriginal = (HashMap<String, Object>) objData;
-                            mapOriginal = ConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
+                            mapOriginal = ESConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
                         } else {
                             mapOriginal = objCurrentMapper.convertValue(objData, HashMap.class);
                         }
@@ -2116,7 +2120,7 @@ public class ElasticAction {
                         if (objData instanceof HashMap) {
                             HashMap<String, Object> mapOriginal = (HashMap<String, Object>) objData;
 
-                            mapOriginal = ConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
+                            mapOriginal = ESConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
 
                             if (bIsUsedAutoID) {
                                 objBulkProcessor.add(new IndexRequest(strIndex, strType)

@@ -1,16 +1,15 @@
 package org.chronotics.pithos.ext.es.adaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.chronotics.pithos.ext.es.log.Logger;
-import org.chronotics.pithos.ext.es.log.LoggerFactory;
+import org.chronotics.pandora.exception.ExceptionUtil;
+import org.chronotics.pandora.log.Logger;
+import org.chronotics.pandora.log.LoggerFactory;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.ESFilterConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterOperationConstant;
-import org.chronotics.pithos.ext.es.util.ExceptionUtil;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.BoolQueryBuilder;
