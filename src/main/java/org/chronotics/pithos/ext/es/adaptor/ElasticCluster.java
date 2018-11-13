@@ -2,8 +2,8 @@ package org.chronotics.pithos.ext.es.adaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chronotics.pandora.exception.ExceptionUtil;
-import org.chronotics.pandora.log.Logger;
-import org.chronotics.pandora.log.LoggerFactory;
+import org.chronotics.pandora.scala.log.Logger;
+import org.chronotics.pandora.scala.log.LoggerFactory;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.elasticsearch.client.transport.TransportClient;

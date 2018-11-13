@@ -1,5 +1,6 @@
 package org.chronotics.pithos.ext.es.util;
 
+import org.chronotics.pandora.scala.file.FileIO;
 import org.chronotics.pithos.ext.es.model.*;
 import org.elasticsearch.common.util.CollectionUtils;
 
