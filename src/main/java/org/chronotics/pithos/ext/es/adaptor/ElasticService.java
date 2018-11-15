@@ -131,7 +131,7 @@ public class ElasticService {
     }
 
     /**
-     * Search data in elastic search
+     * Search data in elastic search without sorting
      * @param strIndex
      * @param strType
      * @param strQuery
@@ -147,7 +147,27 @@ public class ElasticService {
     public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
                                                                    List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
                                                                    Integer intNumField, Boolean bIsSimpleStats, ESFilterAllRequestModel objFilterAllRequest) {
-        return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, bIsSimpleStats, objFilterAllRequest);
+        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, bIsSimpleStats, objFilterAllRequest, null);
+    }
+
+    /**
+     * Search data in elastic search with sorting
+     * @param strIndex
+     * @param strType
+     * @param strQuery
+     * @param lstSelectedField
+     * @param intFromRow
+     * @param intNumRow
+     * @param intFromField
+     * @param intNumField
+     * @param bIsSimpleStats
+     * @param objFilterAllRequest
+     * @return
+     */
+    public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
+                                                                   List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
+                                                                   Integer intNumField, Boolean bIsSimpleStats, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField) {
+        return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, bIsSimpleStats, objFilterAllRequest, lstSortingField);
     }
 
     /**

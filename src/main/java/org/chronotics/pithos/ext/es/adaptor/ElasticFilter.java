@@ -32,6 +32,8 @@ import org.elasticsearch.search.aggregations.pipeline.InternalSimpleValue;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 
 import java.util.*;
@@ -186,8 +188,12 @@ public class ElasticFilter {
 
     @SuppressWarnings("unchecked")
     public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
-                                                                   List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
-                                                                   Integer intNumField, Boolean bIsSimpleStats, ESFilterAllRequestModel objFilterAllRequest) {
+                                                                   List<String> lstSelectedField,
+                                                                   Integer intFromRow, Integer intNumRow,
+                                                                   Integer intFromField, Integer intNumField,
+                                                                   Boolean bIsSimpleStats,
+                                                                   ESFilterAllRequestModel objFilterAllRequest,
+                                                                   List<ESSortingField> lstSortingField) {
         HashMap<String, Object> mapResult = new HashMap<>();
         List<HashMap<String, Object>> lstData = new ArrayList<HashMap<String, Object>>();
         Long lTotalResult = 0L;
@@ -199,7 +205,7 @@ public class ElasticFilter {
 
             ESQueryResultModel objQueryResponseData = getResponseDataFromQueryByFieldIdxAndRowIdx(strIndex, strType,
                     objFilterAllRequest, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField,
-                    bIsSimpleStats);
+                    bIsSimpleStats, lstSortingField);
 
             if (objQueryResponseData != null && objQueryResponseData.getSearch_response() != null) {
                 SearchResponse objResponseData = objQueryResponseData.getSearch_response();
@@ -249,8 +255,10 @@ public class ElasticFilter {
     }
 
     protected ESQueryResultModel getResponseDataFromQueryByFieldIdxAndRowIdx(String strIndex, String strType,
-                                                                           ESFilterAllRequestModel objFilterAllRequest, List<String> lstSelectedField, Integer intFromRow,
-                                                                           Integer intNumRow, Integer intFromCol, Integer intNumCol, Boolean bIsSimpleStats) {
+                                                                             ESFilterAllRequestModel objFilterAllRequest, List<String> lstSelectedField,
+                                                                             Integer intFromRow, Integer intNumRow,
+                                                                             Integer intFromCol, Integer intNumCol,
+                                                                             Boolean bIsSimpleStats, List<ESSortingField> lstSortingField) {
         ESQueryResultModel objQueryResult = new ESQueryResultModel();
         SearchResponse objSearchResponse = new SearchResponse();
 
@@ -291,11 +299,11 @@ public class ElasticFilter {
                         if (objFilterAllRequest != null) {
                             objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
                                     new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows());
+                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows(), lstSortingField);
                         } else {
                             objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
                                     new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, new ArrayList<>());
+                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, new ArrayList<>(), lstSortingField);
                         }
 
                         lstSourceField.add("_id");
@@ -418,8 +426,10 @@ public class ElasticFilter {
 
     @SuppressWarnings("unchecked")
     protected SearchResponse getResponseDataFromQuery(String[] arrIndex, String[] arrType, String[] arrSource,
-                                                    List<ESFilterRequestModel> lstFilterRequest, Boolean bIsReversedFilter, Integer intFrom, Integer intSize,
-                                                    List<ESFieldModel> lstFieldModel, List<String> lstDeletedRows) {
+                                                      List<ESFilterRequestModel> lstFilterRequest, Boolean bIsReversedFilter,
+                                                      Integer intFrom, Integer intSize,
+                                                      List<ESFieldModel> lstFieldModel, List<String> lstDeletedRows,
+                                                      List<ESSortingField> lstSortingField) {
         SearchResponse objSearchResponse = new SearchResponse();
 
         try {
@@ -427,7 +437,23 @@ public class ElasticFilter {
                     .setSearchType(SearchType.DFS_QUERY_THEN_FETCH);
 
             SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
-            objSearchSourceBuilder.size(intSize).from(intFrom).sort("_doc");
+            objSearchSourceBuilder.size(intSize).from(intFrom);
+
+            if (lstSortingField == null || lstSortingField.size() <= 0) {
+                objSearchSourceBuilder.sort("_doc");
+            } else {
+                for (int intCount = 0; intCount < lstSortingField.size(); intCount++) {
+                    ESSortingField objSortingField = lstSortingField.get(intCount);
+                    SortOrder objSortOrder = SortOrder.ASC;
+
+                    if (objSortingField.getOrder_by().equals(2)) {
+                        objSortOrder = SortOrder.DESC;
+                    }
+
+                    SortBuilder objSortBuilder = SortBuilders.fieldSort(objSortingField.getField_name()).order(objSortOrder);
+                    objSearchSourceBuilder.sort(objSortBuilder);
+                }
+            }
 
             if (lstFilterRequest != null && lstFilterRequest.size() > 0) {
                 List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilterRequest, lstFieldModel, lstDeletedRows, bIsReversedFilter);
