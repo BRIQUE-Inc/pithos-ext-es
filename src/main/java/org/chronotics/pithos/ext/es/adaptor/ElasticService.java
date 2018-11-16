@@ -232,6 +232,21 @@ public class ElasticService {
     }
 
     /**
+     * Export all data of index pattern
+     * @param strIndexPattern
+     * @param strType
+     * @param strFilePattern
+     * @param intPageSize
+     * @param objFilterAllRequest
+     * @param bIsMultipleFile
+     * @param inMaxFileLine
+     * @return
+     */
+    public List<ESFileModel> exportESDataToCSV(String strIndexPattern, String strType, String strFilePattern, Integer intPageSize, ESFilterAllRequestModel objFilterAllRequest, Boolean bIsMultipleFile, Integer inMaxFileLine) {
+        return objESAction.exportESDataToCSV(strIndexPattern, strType, strFilePattern, intPageSize, objFilterAllRequest, bIsMultipleFile, inMaxFileLine);
+    }
+
+    /**
      * Update index with some actions
      * @param lstPrepOp
      * @return

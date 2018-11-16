@@ -845,6 +845,48 @@ public class ElasticConnection {
         return bIsCreated;
     }
 
+    public List<ESIndexModel> getAllIndices(String strIndexPattern, String strType) {
+        List<ESIndexModel> lstIndices = new ArrayList<>();
+
+        try {
+            String strCheckIndexPattern = strIndexPattern.replace("*", "").trim();
+
+            List<Object> lstClient = createESAdminClient();
+            TransportClient objESClient = (TransportClient) lstClient.get(0);
+            AdminClient objAdminClient = (AdminClient) lstClient.get(1);
+
+            GetMappingsResponse objMappingResponse = objAdminClient.indices().getMappings(new GetMappingsRequest())
+                    .get();
+
+            if (objMappingResponse != null && objMappingResponse.getMappings() != null) {
+                objMappingResponse.getMappings().forEach(curObject -> {
+                    String strCurIndex = curObject.key;
+                    List<String> lstCurType = new ArrayList<>();
+
+                    curObject.value.forEach(curObjectType -> {
+                        if (curObjectType.equals(strType)) {
+                            lstCurType.add(curObjectType.key);
+                        }
+                    });
+
+                    if (strCurIndex.contains(strCheckIndexPattern) && lstCurType != null && lstCurType.size() > 0) {
+                        ESIndexModel objIndex = new ESIndexModel();
+                        objIndex.setIndex_name(strCurIndex);
+                        objIndex.setIndex_types(lstCurType);
+
+                        lstIndices.add(objIndex);
+                    }
+                });
+            }
+
+            closeESClient(objESClient);
+        } catch (Exception objEx) {
+            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return lstIndices;
+    }
+
     public List<ESIndexModel> getAllIndices() {
         List<ESIndexModel> lstIndices = new ArrayList<>();
 
@@ -891,6 +933,15 @@ public class ElasticConnection {
             if (mapField != null && mapField.containsKey(strIndex) && mapField.get(strIndex) != null
                     && mapField.get(strIndex).get(strType) != null) {
                 lstReturnField = mapField.get(strIndex).get(strType);
+            } else {
+                String strIndexPattern = strIndex.replace("*", "");
+
+                for (Map.Entry<String, Map<String, List<ESFieldModel>>> curEntry : mapField.entrySet()) {
+                    if (curEntry.getKey().contains(strIndexPattern)) {
+                        lstReturnField = curEntry.getValue().get(strType);
+                        break;
+                    }
+                }
             }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
