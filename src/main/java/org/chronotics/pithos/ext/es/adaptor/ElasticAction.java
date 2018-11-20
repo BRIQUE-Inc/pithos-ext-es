@@ -440,6 +440,7 @@ public class ElasticAction {
                 objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(throwable));
             }
         }).setBulkActions(intDataSize < intNumBulkOperation ? intDataSize : intNumBulkOperation)
+                .setConcurrentRequests(5)
                 .build();
 
         return objBulkProcessor;
@@ -1959,8 +1960,10 @@ public class ElasticAction {
                                             throw new Exception();
                                         }
                                     } while (!bIsContinue);
+                                } else {
+                                    List<SearchHit> lstHit = Arrays.asList(objSearchResponse.getHits().getHits()).stream().skip(intCurSkipLine).collect(Collectors.toList());
+                                    bIsWriteCSV = writeESDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), false);
                                 }
-
                             } else {
                                 bIsWriteCSV = writeESDataToCSVFile(objFileWriter, objSearchResponse, false);
                             }

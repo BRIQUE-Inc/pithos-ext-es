@@ -62,6 +62,16 @@ public class ElasticService {
     }
 
     /**
+     * Update Settings of Index
+     * @param strIndex
+     * @param mapUpdateSetting
+     * @return
+     */
+    public Boolean updateSettingsOfIndex(String strIndex, HashMap<String, Integer> mapUpdateSetting) {
+        return objESConnection.updateSettingsOfIndex(strIndex, mapUpdateSetting);
+    }
+
+    /**
      * Delete index
      * @param strIndex
      * @return

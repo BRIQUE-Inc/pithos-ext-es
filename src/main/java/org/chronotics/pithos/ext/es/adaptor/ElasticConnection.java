@@ -15,6 +15,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.AdminClient;
@@ -37,6 +38,7 @@ import org.elasticsearch.search.aggregations.matrix.stats.MatrixStats;
 import org.elasticsearch.search.aggregations.matrix.stats.MatrixStatsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import scala.Int;
 
 import java.net.InetAddress;
 import java.util.*;
@@ -651,6 +653,32 @@ public class ElasticConnection {
         return bIsDeleted;
     }
 
+    public Boolean updateSettingsOfIndex(String strIndex, HashMap<String, Integer> mapUpdateSetting) {
+        Boolean bIsUpdated = false;
+
+        try {
+            if (objESClient != null && mapUpdateSetting != null && mapUpdateSetting.size() > 0) {
+                Settings.Builder objBuilder = Settings.builder();
+
+                for (Map.Entry<String, Integer> curSetting : mapUpdateSetting.entrySet()) {
+                    objBuilder.put(curSetting.getKey(), curSetting.getValue());
+                }
+
+                UpdateSettingsResponse objUpdateSettingResponse = objESClient.admin().indices().prepareUpdateSettings(strIndex)
+                        .setSettings(objBuilder)
+                        .get();
+
+                if (objUpdateSettingResponse != null && objUpdateSettingResponse.isAcknowledged()) {
+                    bIsUpdated = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.warn("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return bIsUpdated;
+    }
+
     @SuppressWarnings("unchecked")
     public Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
                                HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted) {
@@ -808,7 +836,8 @@ public class ElasticConnection {
                             objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
                                     .setSettings(Settings.builder()
                                             .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
-                                            .put("index.max_result_window", 1000000000))
+                                            .put("index.max_result_window", 1000000000)
+                                            .put("index.number_of_replicas", 0))
                                     .get();
 
                             objLogger.info("objCreateIndexResponse: " + objCreateIndexResponse);
