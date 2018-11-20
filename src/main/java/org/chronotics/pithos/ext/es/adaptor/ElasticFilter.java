@@ -266,10 +266,28 @@ public class ElasticFilter {
             Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
                     Arrays.asList(strType), null, true);
 
-            if (mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex)) {
-                if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
-                        && mapFieldOfIndex.get(strIndex).containsKey(strType)) {
-                    List<ESFieldModel> lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
+            if ((mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex))
+                || (strIndex.contains("*"))){
+                List<ESFieldModel> lstFieldModel = new ArrayList<>();
+
+                if (strIndex.contains("*")) {
+                    String strIndexPattern = strIndex.replace("*", "");
+
+                    for (Map.Entry<String, Map<String, List<ESFieldModel>>> curEntry : mapFieldOfIndex.entrySet()) {
+                        if (curEntry.getKey().contains(strIndexPattern)) {
+                            lstFieldModel = curEntry.getValue().get(strType);
+                            break;
+                        }
+                    }
+                } else {
+                    if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
+                            && mapFieldOfIndex.get(strIndex).containsKey(strType)) {
+                        lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
+                    }
+                }
+
+                if (lstFieldModel != null && lstFieldModel.size() > 0) {
+                    lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
                     List<String> lstSourceField = new ArrayList<>();
                     List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
                             && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
