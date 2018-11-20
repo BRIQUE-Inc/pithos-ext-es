@@ -287,7 +287,6 @@ public class ElasticFilter {
                 }
 
                 if (lstFieldModel != null && lstFieldModel.size() > 0) {
-                    lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
                     List<String> lstSourceField = new ArrayList<>();
                     List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
                             && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
