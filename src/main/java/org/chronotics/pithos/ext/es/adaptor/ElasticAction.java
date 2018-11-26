@@ -2206,7 +2206,8 @@ public class ElasticAction {
                         if (objData instanceof HashMap) {
                             mapOriginal = (HashMap<String, Object>) objData;
                         } else {
-                            mapOriginal = objCurrentMapper.convertValue(objData, HashMap.class);
+                            ObjectMapper objObjectMapper = new ObjectMapper();
+                            mapOriginal = objObjectMapper.convertValue(objData, HashMap.class);
                         }
 
                         if (mapOriginal.containsKey(strIDField)) {
