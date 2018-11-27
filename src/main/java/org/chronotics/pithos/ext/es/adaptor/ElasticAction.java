@@ -2212,10 +2212,13 @@ public class ElasticAction {
                             Class<?> classZ = lstData.get(0).getClass();
 
                             for (Map.Entry<String, Object> curField : mapOriginal.entrySet()) {
-                                String strFieldType = classZ.getDeclaredField(curField.getKey()).getType().getTypeName()
-                                        .toLowerCase();
+                                try {
+                                    String strFieldType = classZ.getDeclaredField(curField.getKey()).getType().getTypeName()
+                                            .toLowerCase();
 
-                                mapDataType.put(curField.getKey(), strFieldType);
+                                    mapDataType.put(curField.getKey(), strFieldType);
+                                } catch (Exception objEx) {
+                                }
                             }
                         }
 
