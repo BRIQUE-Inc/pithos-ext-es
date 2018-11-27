@@ -822,7 +822,7 @@ public class ElasticConnection {
                             //If type is not keyword or date, recheck again with whole data, if contain NA => type is keyword
                             if (!objMappingField.getType().equals("keyword") && !objMappingField.getType().equals("date") && bIsHashMap) {
                                 Long lTotalNA = lstData.stream().map(objItem -> ((HashMap<String, Object>) objItem).get(curItem.getKey()))
-                                        .filter(item -> JacksonFilter.checkNAString(item.toString())).count();
+                                        .filter(item -> item != null && JacksonFilter.checkNAString(item.toString())).count();
 
                                 if (lTotalNA > 0) {
                                     objMappingField.setType("keyword");
