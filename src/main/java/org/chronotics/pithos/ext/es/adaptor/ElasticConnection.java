@@ -854,6 +854,7 @@ public class ElasticConnection {
                                             .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
                                             .put("index.max_result_window", 1000000000)
                                             .put("index.number_of_replicas", 0))
+                                    .addMapping(strType, strJSONMappingData, XContentType.JSON)
                                     .get();
 
                             objLogger.info("objCreateIndexResponse: " + objCreateIndexResponse);
