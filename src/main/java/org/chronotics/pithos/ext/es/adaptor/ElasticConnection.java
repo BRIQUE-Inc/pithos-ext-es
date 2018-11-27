@@ -679,9 +679,8 @@ public class ElasticConnection {
         return bIsUpdated;
     }
 
-    @SuppressWarnings("unchecked")
     public Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
-                               HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted) {
+                               HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted, HashMap<String, String> mapFieldDataType) {
         Boolean bIsCreated = false;
 
         try {
@@ -761,14 +760,31 @@ public class ElasticConnection {
 
                             if (lstData.get(intCheck) instanceof HashMap) {
                                 bIsHashMap = true;
-                                Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
-                                objLogger.info("objValue: " + objValue);
 
-                                strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
+                                if (mapFieldDataType == null || !mapFieldDataType.containsKey(curItem.getKey())) {
+                                    try {
+                                        Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
+                                        objLogger.info("objValue: " + objValue);
+
+                                        strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
+                                    } catch (Exception objEx) {
+                                        strFieldType = "java.lang.string";
+                                    }
+
+                                } else {
+                                    if (mapFieldDataType != null && mapFieldDataType.containsKey(curItem.getKey())) {
+                                        strFieldType = mapFieldDataType.get(curItem.getKey()).toLowerCase();
+                                    }
+                                }
                             } else {
                                 strFieldType = classZ.getDeclaredField(curItem.getKey()).getType().getTypeName()
                                         .toLowerCase();
                             }
+
+                            if (strFieldType.isEmpty()) {
+                                strFieldType = "java.lang.string";
+                            }
+
                             objLogger.info("FieldType: " + curItem.getKey() + " - " + strFieldType);
 
                             ESMappingFieldModel objMappingField = new ESMappingFieldModel();
@@ -872,6 +888,12 @@ public class ElasticConnection {
         }
 
         return bIsCreated;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
+                               HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted) {
+        return createIndex(strIndex, strType, lstData, strDateField, mapMappingField, bDelIndexIfExisted, null);
     }
 
     public List<ESIndexModel> getAllIndices(String strIndexPattern, String strType) {

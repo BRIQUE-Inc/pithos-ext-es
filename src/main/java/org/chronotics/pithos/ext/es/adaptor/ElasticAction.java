@@ -2199,6 +2199,7 @@ public class ElasticAction {
                     List<String> lstID = new ArrayList<>();
                     List<HashMap<String, Object>> lstDataWithoutID = new ArrayList<>();
                     HashMap<String, Object> mapOriginal = new HashMap<>();
+                    HashMap<String, String> mapDataType = new HashMap<>();
 
                     if (lstFieldModel == null || lstFieldModel.size() <= 0) {
                         Object objData = lstData.get(0);
@@ -2208,6 +2209,14 @@ public class ElasticAction {
                         } else {
                             ObjectMapper objObjectMapper = new ObjectMapper();
                             mapOriginal = objObjectMapper.convertValue(objData, HashMap.class);
+                            Class<?> classZ = lstData.get(0).getClass();
+
+                            for (Map.Entry<String, Object> curField : mapOriginal.entrySet()) {
+                                String strFieldType = classZ.getDeclaredField(curField.getKey()).getType().getTypeName()
+                                        .toLowerCase();
+
+                                mapDataType.put(curField.getKey(), strFieldType);
+                            }
                         }
 
                         if (mapOriginal.containsKey(strIDField)) {
@@ -2217,7 +2226,7 @@ public class ElasticAction {
                             lstDataWithoutID.add(mapOriginal);
                         }
 
-                        objESConnection.createIndex(strIndex, strType, lstDataWithoutID, strFieldDate, null, false);
+                        objESConnection.createIndex(strIndex, strType, lstDataWithoutID, strFieldDate, null, false, mapDataType);
                         lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
                     }
 
