@@ -1,6 +1,9 @@
 package org.chronotics.pithos.ext.es.adaptor;
 
 import org.chronotics.pithos.ext.es.model.*;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
 
 import java.util.HashMap;
 import java.util.List;
@@ -336,5 +339,16 @@ public class ElasticService {
      */
     public HashMap<String, Object> healthCheckNodes() {
         return objESCluster.healthCheckNode();
+    }
+
+    /**
+     * Get values from custom aggregation filter
+     * @param strIndex
+     * @param strType
+     * @param objCustomAggregationBuilder
+     * @return
+     */
+    public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, AggregationBuilder objCustomAggregationBuilder) {
+        return objESFilter.getCustomAggregationValue(strIndex, strType, objCustomQueryBuilder, objCustomAggregationBuilder);
     }
 }

@@ -12,10 +12,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.MatchAllQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.index.query.*;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
@@ -37,6 +34,7 @@ import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class ElasticFilter {
@@ -1140,4 +1138,26 @@ public class ElasticFilter {
         return mapFieldStat;
     }
 
+    public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, AggregationBuilder objCustomAggregationBuilder) {
+        if (objESClient != null && objCustomAggregationBuilder != null) {
+            try {
+                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                objSearchSourceBuilder.size(0);
+                objSearchRequestBuilder.setSource(objSearchSourceBuilder);
+
+                if (objCustomQueryBuilder != null) {
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
+                }
+
+                objSearchRequestBuilder.addAggregation(objCustomAggregationBuilder);
+
+                return objSearchRequestBuilder.get(new TimeValue(10, TimeUnit.MINUTES));
+            } catch (Exception objEx) {
+                objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            }
+        }
+
+        return null;
+    }
 }

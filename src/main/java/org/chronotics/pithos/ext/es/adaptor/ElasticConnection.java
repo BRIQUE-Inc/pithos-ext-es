@@ -870,10 +870,7 @@ public class ElasticConnection {
                                 try {
                                     HashMap<String, Object> mapSettings = new HashMap<>();
                                     mapSettings.put("script.max_compilations_rate", "10000/1m");
-                                    //ClusterUpdateSettingsRequestBuilder objBuilder = Settings.builder().put("script.max_compilations_per_minute", 1000000);
-                                    //objESClient.admin().indices().prepareUpdateSettings().setIndex(strIndex).setType(strType).setDoc("{\"transient.script.max_compilations_per_minute\" : 1000000}", XContentType.JSON).get();
                                     objESClient.admin().cluster().prepareUpdateSettings().setTransientSettings(mapSettings).get();
-                                    //objESClient.admin().indices().prepareUpdateSettings(strIndex).setSettings(mapSettings).get();
                                 } catch (Exception objEx) {
                                     objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
                                 }
