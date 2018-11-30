@@ -19,6 +19,10 @@ public class ESMappingFieldModel {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     Boolean index;
 
+    @JsonProperty("norms")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    Boolean norms = false;
+
     public String getType() {
         return type;
     }
@@ -49,5 +53,13 @@ public class ESMappingFieldModel {
 
     public void setIndex(Boolean index) {
         this.index = index;
+    }
+
+    public Boolean getNorms() {
+        return norms;
+    }
+
+    public void setNorms(Boolean norms) {
+        this.norms = norms;
     }
 }

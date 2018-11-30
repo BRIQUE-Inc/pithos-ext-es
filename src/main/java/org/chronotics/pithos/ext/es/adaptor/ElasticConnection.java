@@ -792,6 +792,7 @@ public class ElasticConnection {
                             objMappingField.setFielddata(null);
                             objMappingField.setCopy_to(null);
                             objMappingField.setIndex(null);
+                            objMappingField.setNorms(false);
 
                             if (curItem.getKey().toLowerCase().equals(strDateField.toLowerCase())) {
                                 objMappingField.setType("date");
