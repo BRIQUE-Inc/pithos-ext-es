@@ -413,6 +413,10 @@ public class ElasticAction {
     }
 
     protected BulkProcessor createBulkProcessor(TransportClient objESClient, Integer intDataSize) {
+        Integer intNumOfThread = Runtime.getRuntime().availableProcessors();
+
+        intNumOfThread = intNumOfThread < 8 ? 8 : (intNumOfThread * 2);
+
         BulkProcessor objBulkProcessor = BulkProcessor.builder(objESClient, new BulkProcessor.Listener() {
             @Override
             public void beforeBulk(long l, BulkRequest bulkRequest) {
@@ -440,7 +444,7 @@ public class ElasticAction {
                 objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(throwable));
             }
         }).setBulkActions(intDataSize < intNumBulkOperation ? intDataSize : intNumBulkOperation)
-                .setConcurrentRequests(5)
+                .setConcurrentRequests(intNumOfThread)
                 .build();
 
         return objBulkProcessor;
