@@ -153,14 +153,14 @@ public class ElasticService {
      * @param intNumRow
      * @param intFromField
      * @param intNumField
-     * @param bIsSimpleStats
+     * @param intStatsType: 0 - No Statistic, 1 - Simple Statistic, 2 - Complex Statistic
      * @param objFilterAllRequest
      * @return
      */
     public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
                                                                    List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
-                                                                   Integer intNumField, Boolean bIsSimpleStats, ESFilterAllRequestModel objFilterAllRequest) {
-        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, bIsSimpleStats, objFilterAllRequest, null);
+                                                                   Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest) {
+        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, null);
     }
 
     /**
@@ -173,14 +173,14 @@ public class ElasticService {
      * @param intNumRow
      * @param intFromField
      * @param intNumField
-     * @param bIsSimpleStats
+     * @param intStatsType: 0 - No Statistic, 1 - Simple Statistic, 2 - Complex Statistic
      * @param objFilterAllRequest
      * @return
      */
     public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
                                                                    List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
-                                                                   Integer intNumField, Boolean bIsSimpleStats, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField) {
-        return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, bIsSimpleStats, objFilterAllRequest, lstSortingField);
+                                                                   Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField) {
+        return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, lstSortingField);
     }
 
     /**

@@ -189,7 +189,7 @@ public class ElasticFilter {
                                                                    List<String> lstSelectedField,
                                                                    Integer intFromRow, Integer intNumRow,
                                                                    Integer intFromField, Integer intNumField,
-                                                                   Boolean bIsSimpleStats,
+                                                                   Integer intStatsType,
                                                                    ESFilterAllRequestModel objFilterAllRequest,
                                                                    List<ESSortingField> lstSortingField) {
         HashMap<String, Object> mapResult = new HashMap<>();
@@ -203,7 +203,7 @@ public class ElasticFilter {
 
             ESQueryResultModel objQueryResponseData = getResponseDataFromQueryByFieldIdxAndRowIdx(strIndex, strType,
                     objFilterAllRequest, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField,
-                    bIsSimpleStats, lstSortingField);
+                    intStatsType, lstSortingField);
 
             if (objQueryResponseData != null && objQueryResponseData.getSearch_response() != null) {
                 SearchResponse objResponseData = objQueryResponseData.getSearch_response();
@@ -256,7 +256,7 @@ public class ElasticFilter {
                                                                              ESFilterAllRequestModel objFilterAllRequest, List<String> lstSelectedField,
                                                                              Integer intFromRow, Integer intNumRow,
                                                                              Integer intFromCol, Integer intNumCol,
-                                                                             Boolean bIsSimpleStats, List<ESSortingField> lstSortingField) {
+                                                                             Integer intStatsType, List<ESSortingField> lstSortingField) {
         ESQueryResultModel objQueryResult = new ESQueryResultModel();
         SearchResponse objSearchResponse = new SearchResponse();
 
@@ -328,11 +328,15 @@ public class ElasticFilter {
                         objQueryResult.setNum_selected_fields(lstSourceField.size());
                         objQueryResult.setSelected_fields(lstSourceField);
 
-                        if ((objFilterAllRequest == null || objFilterAllRequest.getFilters() == null
-                                || objFilterAllRequest.getFilters().size() <= 0) && intFromRow == 0) {
-                            List<ESFieldAggModel> lstFieldAggs = getHistogramOfField(strIndex, strType, lstSourceField,
-                                    bIsSimpleStats);
-                            objQueryResult.setAgg_fields(lstFieldAggs);
+                        if (intStatsType != 0) {
+                            Boolean bIsSimpleStats = intStatsType == 1 ? true : false;
+
+                            if ((objFilterAllRequest == null || objFilterAllRequest.getFilters() == null
+                                    || objFilterAllRequest.getFilters().size() <= 0) && intFromRow == 0) {
+                                List<ESFieldAggModel> lstFieldAggs = getHistogramOfField(strIndex, strType, lstSourceField,
+                                        bIsSimpleStats);
+                                objQueryResult.setAgg_fields(lstFieldAggs);
+                            }
                         }
                     }
                 }
