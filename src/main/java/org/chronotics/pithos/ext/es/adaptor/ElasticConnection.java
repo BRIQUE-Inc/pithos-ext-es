@@ -792,7 +792,7 @@ public class ElasticConnection {
                             objMappingField.setFielddata(null);
                             objMappingField.setCopy_to(null);
                             objMappingField.setIndex(null);
-                            objMappingField.setNorms(false);
+                            objMappingField.setNorms(null);
 
                             if (curItem.getKey().toLowerCase().equals(strDateField.toLowerCase())) {
                                 objMappingField.setType("date");
@@ -855,7 +855,8 @@ public class ElasticConnection {
                                             .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
                                             .put("index.max_result_window", 1000000000)
                                             .put("index.number_of_replicas", 0)
-                                            .put("index.refresh_interval", "60s"))
+                                            .put("index.refresh_interval", "60s")
+                                    )
                                     .addMapping(strType, strJSONMappingData, XContentType.JSON)
                                     .get();
 
