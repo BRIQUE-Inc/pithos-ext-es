@@ -3,7 +3,9 @@ package org.chronotics.pithos.ext.es.adaptor;
 import org.chronotics.pithos.ext.es.model.*;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
 
 import java.util.HashMap;
 import java.util.List;
@@ -350,5 +352,18 @@ public class ElasticService {
      */
     public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, AggregationBuilder objCustomAggregationBuilder) {
         return objESFilter.getCustomAggregationValue(strIndex, strType, objCustomQueryBuilder, objCustomAggregationBuilder);
+    }
+
+
+    /**
+     * Get hits from custom query
+     * @param strIndex
+     * @param strType
+     * @param objCustomQueryBuilder
+     * @param objFieldSortBuilder
+     * @return
+     */
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder) {
+        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder);
     }
 }

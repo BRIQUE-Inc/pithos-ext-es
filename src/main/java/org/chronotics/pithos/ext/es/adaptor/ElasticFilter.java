@@ -14,6 +14,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.*;
 import org.elasticsearch.script.Script;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
@@ -267,7 +268,7 @@ public class ElasticFilter {
                     Arrays.asList(strType), null, true);
 
             if ((mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex))
-                || (strIndex.contains("*"))){
+                    || (strIndex.contains("*"))) {
                 List<ESFieldModel> lstFieldModel = new ArrayList<>();
 
                 if (strIndex.contains("*")) {
@@ -351,7 +352,7 @@ public class ElasticFilter {
     }
 
     protected BoolQueryBuilder generateAggQueryBuilder(String strIndex, String strType, BoolQueryBuilder objQueryBuilder,
-                                                     List<ESFilterRequestModel> lstNotAddedFilterRequest, List<ESFieldModel> lstFieldModel) {
+                                                       List<ESFilterRequestModel> lstNotAddedFilterRequest, List<ESFieldModel> lstFieldModel) {
         List<String> lstNotAddedFieldName = lstNotAddedFilterRequest.stream()
                 .filter(objFilter -> (objFilter.getFiltered_conditions() != null
                         && objFilter.getFiltered_conditions().size() > 0))
@@ -548,7 +549,7 @@ public class ElasticFilter {
     // Way to generate Histogram of array data:
     // http://www.oswego.edu/~srp/stats/hist_con.htm
     protected List<ESFieldAggModel> getHistogramOfField(String strIndex, String strType, List<String> lstField,
-                                                      Boolean bIsSimpleStats) {
+                                                        Boolean bIsSimpleStats) {
         List<ESFieldAggModel> lstAggResult = new ArrayList<>();
         Map<String, List<ESFieldPointModel>> mapHistogramPoint = new HashMap<>();
         Map<String, ESFieldStatModel> mapFieldStats = new HashMap<>();
@@ -907,7 +908,7 @@ public class ElasticFilter {
     // Way to calculate Outlier:
     // https://www.itl.nist.gov/div898/handbook/prc/section1/prc16.htm
     protected Map<String, ESFieldStatModel> statsField(String strIndex, String strType, List<String> lstNumberField, List<String> lstStringField,
-                                                     Boolean bIsSimpleStats) {
+                                                       Boolean bIsSimpleStats) {
         Map<String, ESFieldStatModel> mapFieldStat = new HashMap<>();
 
         try {
@@ -1165,5 +1166,46 @@ public class ElasticFilter {
         }
 
         return null;
+    }
+
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder) {
+        List<SearchHit> lstHit = new ArrayList<>();
+
+        try {
+            if (objESClient != null && objCustomQueryBuilder != null) {
+                //Refresh index before export
+                objESConnection.refreshIndex(strIndex);
+
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                        .setSource(objSearchSourceBuilder)
+                        .addSort(objFieldSortBuilder).setScroll(new TimeValue(60000))
+                        .setSize(20000).get();
+
+                do {
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+                        List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+
+                        lstHit.addAll(lstCurHit);
+
+                        objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                .setScroll(new TimeValue(60000)).get();
+                    } else {
+                        break;
+                    }
+                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0);
+            }
+        } catch (Exception objEx) {
+            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return lstHit;
     }
 }
