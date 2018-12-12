@@ -1148,6 +1148,8 @@ public class ElasticFilter {
     public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, AggregationBuilder objCustomAggregationBuilder) {
         if (objESClient != null && objCustomAggregationBuilder != null) {
             try {
+                objESConnection.refreshIndex(strIndex);
+
                 SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
