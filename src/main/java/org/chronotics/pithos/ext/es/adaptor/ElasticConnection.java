@@ -856,6 +856,7 @@ public class ElasticConnection {
                                             .put("index.max_result_window", 1000000000)
                                             .put("index.number_of_replicas", 0)
                                             .put("index.refresh_interval", "60s")
+                                            .put("index.routing.allocation.require.box_type", "hot")
                                     )
                                     .addMapping(strType, strJSONMappingData, XContentType.JSON)
                                     .get();
