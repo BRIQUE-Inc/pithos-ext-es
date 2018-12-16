@@ -217,15 +217,19 @@ public class ElasticConnection {
                             }
                         }
 
-                        // Make sure the list of Fields doesnt contain any empty field
-                        List<String> notNullField = getNotNullField(strCurIndex, strCurType, lstField);
-                        List<ESFieldModel> lstNotNullESField = new ArrayList<>();
-                        for (ESFieldModel fd : lstESField) {
-                            if (!bIsCheckNull || notNullField.contains(fd.getFull_name())) {
-                                lstNotNullESField.add(fd);
+                        if (bIsCheckNull) {
+                            // Make sure the list of Fields doesnt contain any empty field
+                            List<String> notNullField = getNotNullField(strCurIndex, strCurType, lstField);
+                            List<ESFieldModel> lstNotNullESField = new ArrayList<>();
+                            for (ESFieldModel fd : lstESField) {
+                                if (!bIsCheckNull || notNullField.contains(fd.getFull_name())) {
+                                    lstNotNullESField.add(fd);
+                                }
                             }
+                            mapType.put(strCurType, lstNotNullESField);
+                        } else  {
+                            mapType.put(strCurType, lstESField);
                         }
-                        mapType.put(strCurType, lstNotNullESField);
                     }
 
                     mapFields.put(strCurIndex, mapType);
