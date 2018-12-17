@@ -21,8 +21,8 @@ public class ElasticService {
 
     public static ElasticService instance;
 
-    public ElasticService(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort) {
-        this.objESConnection = ElasticConnection.getInstance(strESClusterName, strESCoorNodeIP, intESCoorNodePort);
+    public ElasticService(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
+        this.objESConnection = ElasticConnection.getInstance(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strTransportUsername, strTransportPassword);
         this.objESFilter = new ElasticFilter(this.objESConnection);
         this.objESAction = new ElasticAction(this.objESConnection, this.objESFilter, intNumBulkAction);
         this.objESCluster = new ElasticCluster(this.objESConnection);
@@ -33,7 +33,20 @@ public class ElasticService {
         if (instance == null) {
             synchronized (ElasticService.class) {
                 if (instance == null) {
-                    instance = new ElasticService(strESClusterName, strESCoorNodeIP, intESCoorNodePort);
+                    instance = new ElasticService(strESClusterName, strESCoorNodeIP, intESCoorNodePort, "", "");
+                }
+            }
+        }
+
+        return instance;
+    }
+
+    public static ElasticService getInstance(String strESClusterName, String strESCoorNodeIP,
+                                             Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
+        if (instance == null) {
+            synchronized (ElasticService.class) {
+                if (instance == null) {
+                    instance = new ElasticService(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strTransportUsername, strTransportPassword);
                 }
             }
         }

@@ -38,6 +38,7 @@ import org.elasticsearch.search.aggregations.matrix.stats.MatrixStats;
 import org.elasticsearch.search.aggregations.matrix.stats.MatrixStatsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
 import scala.Int;
 
 import java.net.InetAddress;
@@ -48,6 +49,8 @@ public class ElasticConnection {
     Logger objLogger = LoggerFactory.getLogger(ElasticConnection.class);
     String strESClusterName = "";
     String strESCoorNodeIP = "";
+    String strTransportUsername = "";
+    String strTransportPassword = "";
     Integer intESCoorNodePort = 0;
     Integer intNumBulkOperation = 20000;
     TransportClient objESClient;
@@ -57,10 +60,12 @@ public class ElasticConnection {
 
     ObjectMapper objMapper = new ObjectMapper();
 
-    public ElasticConnection(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort) {
+    public ElasticConnection(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
         this.strESClusterName = strESClusterName;
         this.strESCoorNodeIP = strESCoorNodeIP;
         this.intESCoorNodePort = intESCoorNodePort;
+        this.strTransportUsername = strTransportUsername;
+        this.strTransportPassword = strTransportPassword;
 
         this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_BYTE);
         this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_DATE);
@@ -81,7 +86,20 @@ public class ElasticConnection {
         if (instance == null) {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
-                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort);
+                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, "", "");
+                }
+            }
+        }
+
+        return instance;
+    }
+
+    public static ElasticConnection getInstance(String strESClusterName, String strESCoorNodeIP,
+                                                Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
+        if (instance == null) {
+            synchronized (ElasticConnection.class) {
+                if (instance == null) {
+                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strTransportUsername, strTransportPassword);
                 }
             }
         }
@@ -94,10 +112,19 @@ public class ElasticConnection {
         TransportClient objESClient = null;
 
         try {
-            Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                    .put("client.transport.sniff", false).build();
-            objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
-                    new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+            if (this.strTransportUsername == null || this.strTransportUsername.isEmpty()) {
+                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+                        .put("client.transport.sniff", false).build();
+                objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
+                        new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+            } else {
+                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+                        .put("client.transport.sniff", false)
+                        .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
+                        .build();
+                objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
+                        .addTransportAddress(new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+            }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
