@@ -2172,6 +2172,7 @@ public class ElasticAction {
                         HashMap<String, Object> mapData = lstDataWithoutID.get(intCount);
 
                         objBulkProcessor.add(new UpdateRequest(strIndex, strType, lstID.get(intCount))
+                                .docAsUpsert(true)
                                 .doc(objCurrentMapper.writeValueAsString(mapData), XContentType.JSON));
                     }
 
