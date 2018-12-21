@@ -349,6 +349,21 @@ public class ElasticService {
     }
 
     /**
+     * Update data back to ElasticSearch with Custom Query
+     * @param strIndex
+     * @param strType
+     * @param objFilterAllRequest
+     * @param mapUpdateFieldValue
+     * @param intPageSize
+     * @return
+     */
+    public Boolean updateBulkData(String strIndex, String strType,
+                                  ESFilterAllRequestModel objFilterAllRequest, HashMap<String, Object> mapUpdateFieldValue,
+                                  Integer intPageSize) {
+        return objESAction.updateBulkData(strIndex, strType, objFilterAllRequest, mapUpdateFieldValue, intPageSize);
+    }
+
+    /**
      * Health Check Nodes' Statuses
      * @return
      */
