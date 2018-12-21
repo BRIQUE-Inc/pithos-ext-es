@@ -9,15 +9,13 @@ import org.chronotics.pandora.java.serialization.JacksonFilter;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.transport.TransportClient;
@@ -39,7 +37,6 @@ import org.elasticsearch.search.aggregations.matrix.stats.MatrixStatsAggregation
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
-import scala.Int;
 
 import java.net.InetAddress;
 import java.util.*;
@@ -671,7 +668,7 @@ public class ElasticConnection {
 
         try {
             if (objESClient != null) {
-                DeleteIndexResponse objDeleteResponse = objESClient.admin().indices().prepareDelete(strIndex).get();
+                AcknowledgedResponse objDeleteResponse = objESClient.admin().indices().prepareDelete(strIndex).get();
 
                 if (objDeleteResponse != null && objDeleteResponse.isAcknowledged()) {
                     bIsDeleted = true;
@@ -695,7 +692,7 @@ public class ElasticConnection {
                     objBuilder.put(curSetting.getKey(), curSetting.getValue());
                 }
 
-                UpdateSettingsResponse objUpdateSettingResponse = objESClient.admin().indices().prepareUpdateSettings(strIndex)
+                AcknowledgedResponse objUpdateSettingResponse = objESClient.admin().indices().prepareUpdateSettings(strIndex)
                         .setSettings(objBuilder)
                         .get();
 
@@ -897,7 +894,7 @@ public class ElasticConnection {
 
                         if (bIsExistsIndex
                                 || (objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())) {
-                            PutMappingResponse objPutMappingResponse = objESClient.admin().indices()
+                            AcknowledgedResponse objPutMappingResponse = objESClient.admin().indices()
                                     .preparePutMapping(strIndex).setType(strType)
                                     .setSource(strJSONMappingData, XContentType.JSON).get();
 

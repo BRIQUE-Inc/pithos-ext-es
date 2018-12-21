@@ -13,7 +13,6 @@ import org.chronotics.pandora.java.math.MathUtil;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -23,6 +22,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
@@ -762,7 +762,7 @@ public class ElasticAction {
                 if (lstNewFieldInfo != null && lstNewFieldInfo.size() == 2) {
                     Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
                             = objESConnection.createNewMappingField(lstNewFieldInfo.get(1), lstNewFieldInfo.get(0));
-                    PutMappingResponse objPutMappingResponse = null;
+                    AcknowledgedResponse objPutMappingResponse = null;
 
                     try {
                         objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
@@ -1232,7 +1232,7 @@ public class ElasticAction {
                 if (lstNewFieldInfo != null && lstNewFieldInfo.size() == 2) {
                     Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
                             = objESConnection.createNewMappingField(lstNewFieldInfo.get(1), lstNewFieldInfo.get(0));
-                    PutMappingResponse objPutMappingResponse = null;
+                    AcknowledgedResponse objPutMappingResponse = null;
 
                     try {
                         objPutMappingResponse = objESClient.admin().indices().preparePutMapping(objPrep.getIndex())
@@ -1569,7 +1569,7 @@ public class ElasticAction {
         if (lstNewFieldInfo != null && lstNewFieldInfo.size() == 2) {
             Map<String, Map<String, ESMappingFieldModel>> mapFieldProperties
                     = objESConnection.createNewMappingField(lstNewFieldInfo.get(1), lstNewFieldInfo.get(0));
-            PutMappingResponse objPutMappingResponse = null;
+            AcknowledgedResponse objPutMappingResponse = null;
 
             try {
                 objPutMappingResponse = objESClient.admin().indices().preparePutMapping(strIndex)
@@ -2136,6 +2136,96 @@ public class ElasticAction {
                 && objSearchResponse.getHits().getHits().length > 0);
 
         return true;
+    }
+
+    public Boolean updateBulkData(String strIndex, String strType,
+                                  ESFilterAllRequestModel objFilterAllRequest, HashMap<String, Object> mapUpdateFieldValue,
+                                  Integer intPageSize) {
+        Boolean bIsUpdated = false;
+
+        try {
+            if (objESClient != null) {
+                //Refresh index before update
+                objESConnection.refreshIndex(strIndex);
+
+                List<ESFieldModel> lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
+
+                List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
+                        && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
+                        ? objFilterAllRequest.getFilters()
+                        : new ArrayList<ESFilterRequestModel>();
+
+                Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
+
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+
+                if (lstFilters != null && lstFilters.size() > 0) {
+                    List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilters, lstFieldModel, new ArrayList<>(), bIsReversedFilter);
+                    BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
+
+                    List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
+
+                    if (objQueryBuilder != null) {
+                        if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
+                            objQueryBuilder = objESFilter.generateAggQueryBuilder(strIndex, strType, objQueryBuilder,
+                                    lstNotAddedFilterRequest, lstFieldModel);
+                        }
+
+                        objSearchSourceBuilder.query(objQueryBuilder);
+                    }
+                }
+
+                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                        .setSource(objSearchSourceBuilder)
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                        .setSize(intPageSize).get();
+
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+                do {
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+                        List<SearchHit> lstData = new ArrayList<SearchHit>();
+                        lstData = Arrays.asList(objSearchResponse.getHits().getHits());
+
+                        for (int intCount = 0; intCount < lstData.size(); intCount++) {
+                            Map<String, Object> mapCurHit = lstData.get(intCount).getSourceAsMap();
+                            String strHitID = lstData.get(intCount).getId();
+
+                            for (Map.Entry<String, Object> curUpdateItem : mapUpdateFieldValue.entrySet()) {
+                                if (mapCurHit.containsKey(curUpdateItem.getKey())) {
+                                    mapCurHit.put(curUpdateItem.getKey(), curUpdateItem.getValue());
+                                }
+                            }
+
+                            objBulkProcessor.add(new UpdateRequest(strIndex, strType, strHitID)
+                                    .docAsUpsert(true)
+                                    .doc(objCurrentMapper.writeValueAsString(mapCurHit), XContentType.JSON));
+                        }
+
+                        objBulkProcessor.flush();
+                        objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+                    }
+
+                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(60000)).get();
+                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0);
+
+                bIsUpdated = true;
+            }
+        } catch (Exception objEx) {
+            bIsUpdated = false;
+            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return bIsUpdated;
     }
 
     public Boolean updateBulkData(String strIndex, String strType, List<?> lstData, String strIDField) {
