@@ -54,6 +54,14 @@ public class ElasticService {
         return instance;
     }
 
+    public void setNumReplica(Integer intNumReplica) {
+        this.objESConnection.intNumReplica = intNumReplica;
+    }
+
+    public void setIsUseHotWarm(Boolean bIsUseHotWarm) {
+        this.objESConnection.bIsUseHotWarm = bIsUseHotWarm;
+    }
+
     public void closeInstance() {
         objESConnection.closeInstance();
     }

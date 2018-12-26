@@ -53,6 +53,9 @@ public class ElasticConnection {
     TransportClient objESClient;
     List<String> lstConvertedDataType = new ArrayList<>();
 
+    Integer intNumReplica = 0;
+    Boolean bIsUseHotWarm = false;
+
     public static ElasticConnection instance;
 
     ObjectMapper objMapper = new ObjectMapper();
@@ -102,6 +105,14 @@ public class ElasticConnection {
         }
 
         return instance;
+    }
+
+    public void setNumReplica(Integer intNumReplica) {
+        this.intNumReplica = intNumReplica;
+    }
+
+    public void setIsUseHotWarm(Boolean bIsUseHotWarm) {
+        this.bIsUseHotWarm = bIsUseHotWarm;
     }
 
     @SuppressWarnings("resource")
@@ -878,14 +889,19 @@ public class ElasticConnection {
                         if (!bIsExistsIndex) {
                             objLogger.info("createIndex: " + strIndex);
 
+                            Settings.Builder objBuilder = Settings.builder()
+                                    .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
+                                    .put("index.max_result_window", 1000000000)
+                                    .put("index.number_of_replicas", intNumReplica < 0 ? 0 : intNumReplica)
+                                    .put("index.refresh_interval", "60s");
+
+                            if (bIsUseHotWarm) {
+                                objBuilder.put("index.routing.allocation.require.box_type", "hot");
+                            }
+
+
                             objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
-                                    .setSettings(Settings.builder()
-                                            .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
-                                            .put("index.max_result_window", 1000000000)
-                                            .put("index.number_of_replicas", 0)
-                                            .put("index.refresh_interval", "60s")
-                                            //.put("index.routing.allocation.require.box_type", "hot")
-                                    )
+                                    .setSettings(objBuilder)
                                     .addMapping(strType, strJSONMappingData, XContentType.JSON)
                                     .get();
 
