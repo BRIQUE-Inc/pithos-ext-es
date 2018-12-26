@@ -16,6 +16,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRespon
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -2136,6 +2137,86 @@ public class ElasticAction {
                 && objSearchResponse.getHits().getHits().length > 0);
 
         return true;
+    }
+
+    public Boolean deleteBulkData(String strIndex, String strType,
+                                  ESFilterAllRequestModel objFilterAllRequest, Integer intPageSize) {
+        Boolean bIsUpdated = false;
+
+        try {
+            if (objESClient != null) {
+                //Refresh index before update
+                objESConnection.refreshIndex(strIndex);
+
+                List<ESFieldModel> lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
+
+                List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
+                        && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
+                        ? objFilterAllRequest.getFilters()
+                        : new ArrayList<ESFilterRequestModel>();
+
+                Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
+
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+
+                if (lstFilters != null && lstFilters.size() > 0) {
+                    List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilters, lstFieldModel, new ArrayList<>(), bIsReversedFilter);
+                    BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
+
+                    List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
+
+                    if (objQueryBuilder != null) {
+                        if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
+                            objQueryBuilder = objESFilter.generateAggQueryBuilder(strIndex, strType, objQueryBuilder,
+                                    lstNotAddedFilterRequest, lstFieldModel);
+                        }
+
+                        objSearchSourceBuilder.query(objQueryBuilder);
+                    }
+                }
+
+                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                        .setSource(objSearchSourceBuilder)
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                        .setSize(intPageSize).get();
+
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+                do {
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+                        List<SearchHit> lstData = new ArrayList<SearchHit>();
+                        lstData = Arrays.asList(objSearchResponse.getHits().getHits());
+
+                        for (int intCount = 0; intCount < lstData.size(); intCount++) {
+                            String strHitID = lstData.get(intCount).getId();
+
+                            objBulkProcessor.add(new DeleteRequest(strIndex, strType, strHitID));
+                        }
+
+                        objBulkProcessor.flush();
+                        objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+                    }
+
+                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(60000)).get();
+                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0);
+
+                bIsUpdated = true;
+            }
+        } catch (Exception objEx) {
+            bIsUpdated = false;
+            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return bIsUpdated;
     }
 
     public Boolean updateBulkData(String strIndex, String strType,

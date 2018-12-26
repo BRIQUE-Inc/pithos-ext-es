@@ -372,6 +372,19 @@ public class ElasticService {
     }
 
     /**
+     * Delete data from ElasticSearch with custom query
+     * @param strIndex
+     * @param strType
+     * @param objFilterAllRequest
+     * @param intPageSize
+     * @return
+     */
+    public Boolean deleteBulkData(String strIndex, String strType,
+                                  ESFilterAllRequestModel objFilterAllRequest, Integer intPageSize) {
+        return objESAction.deleteBulkData(strIndex, strType, objFilterAllRequest, intPageSize);
+    }
+
+    /**
      * Health Check Nodes' Statuses
      * @return
      */
