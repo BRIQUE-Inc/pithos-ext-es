@@ -2180,7 +2180,6 @@ public class ElasticAction {
                         .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
                         .setSize(intPageSize).get();
 
-                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
                 ObjectMapper objCurrentMapper = new ObjectMapper();
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
@@ -2190,6 +2189,8 @@ public class ElasticAction {
                             && objSearchResponse.getHits().getTotalHits() > 0
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0) {
+                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
+
                         List<SearchHit> lstData = new ArrayList<SearchHit>();
                         lstData = Arrays.asList(objSearchResponse.getHits().getHits());
 
@@ -2263,7 +2264,6 @@ public class ElasticAction {
                         .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
                         .setSize(intPageSize).get();
 
-                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
                 ObjectMapper objCurrentMapper = new ObjectMapper();
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
@@ -2273,6 +2273,8 @@ public class ElasticAction {
                             && objSearchResponse.getHits().getTotalHits() > 0
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0) {
+                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
+                        
                         List<SearchHit> lstData = new ArrayList<SearchHit>();
                         lstData = Arrays.asList(objSearchResponse.getHits().getHits());
 
