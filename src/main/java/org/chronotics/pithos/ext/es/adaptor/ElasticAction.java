@@ -2195,8 +2195,10 @@ public class ElasticAction {
 
                         for (int intCount = 0; intCount < lstData.size(); intCount++) {
                             String strHitID = lstData.get(intCount).getId();
+                            String strCurIndex = lstData.get(intCount).getIndex();
+                            String strCurType = lstData.get(intCount).getType();
 
-                            objBulkProcessor.add(new DeleteRequest(strIndex, strType, strHitID));
+                            objBulkProcessor.add(new DeleteRequest(strCurIndex, strCurType, strHitID));
                         }
 
                         objBulkProcessor.flush();
