@@ -2274,7 +2274,7 @@ public class ElasticAction {
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0) {
                         BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
-                        
+
                         List<SearchHit> lstData = new ArrayList<SearchHit>();
                         lstData = Arrays.asList(objSearchResponse.getHits().getHits());
 
