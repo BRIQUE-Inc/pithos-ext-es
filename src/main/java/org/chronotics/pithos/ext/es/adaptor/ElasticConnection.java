@@ -60,6 +60,8 @@ public class ElasticConnection {
 
     ObjectMapper objMapper = new ObjectMapper();
 
+    String strListESCoorNodeConnectionString = "";
+
     public ElasticConnection(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
         this.strESClusterName = strESClusterName;
         this.strESCoorNodeIP = strESCoorNodeIP;
@@ -81,6 +83,26 @@ public class ElasticConnection {
         objESClient = createESClient();
     }
 
+    public ElasticConnection(String strESClusterName, String strListESCoorNodeConnectionString, String strTransportUsername, String strTransportPassword) {
+        this.strESClusterName = strESClusterName;
+        this.strListESCoorNodeConnectionString = strListESCoorNodeConnectionString;
+        this.strTransportUsername = strTransportUsername;
+        this.strTransportPassword = strTransportPassword;
+
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_BYTE);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_DATE);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_DOUBLE);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_BOOLEAN);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_FLOAT);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_INTEGER);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_LONG);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_NUMERIC);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_SHORT);
+        this.lstConvertedDataType.add(ESFilterOperationConstant.DATA_TYPE_TEXT);
+
+        objESClient = createESClientWithListNode();
+    }
+
     public static ElasticConnection getInstance(String strESClusterName, String strESCoorNodeIP,
                                                 Integer intESCoorNodePort) {
         if (instance == null) {
@@ -100,6 +122,19 @@ public class ElasticConnection {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
                     instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strTransportUsername, strTransportPassword);
+                }
+            }
+        }
+
+        return instance;
+    }
+
+    public static ElasticConnection getInstance(String strESClusterName, String strListESCoorNodeConnectionString,
+                                                String strTransportUsername, String strTransportPassword) {
+        if (instance == null) {
+            synchronized (ElasticConnection.class) {
+                if (instance == null) {
+                    instance = new ElasticConnection(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword);
                 }
             }
         }
@@ -135,6 +170,45 @@ public class ElasticConnection {
             }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return objESClient;
+    }
+
+    protected TransportClient createESClientWithListNode() {
+        TransportClient objESClient = null;
+
+        String[] arrCoorNodeConnectionString = strListESCoorNodeConnectionString.split("\\;");
+
+        if (arrCoorNodeConnectionString != null && arrCoorNodeConnectionString.length > 0) {
+            try {
+                TransportAddress[] arrConnectionNode = new TransportAddress[arrCoorNodeConnectionString.length];
+
+                for (int intCount = 0; intCount < arrCoorNodeConnectionString.length; intCount++) {
+                    String[] arrSplit = arrCoorNodeConnectionString[intCount].split("\\:");
+
+                    if (arrSplit.length == 2) {
+                        TransportAddress objCurTransportAddr = new TransportAddress(InetAddress.getByName(arrSplit[0].trim()), Integer.valueOf(arrSplit[1].trim()));
+                        arrConnectionNode[intCount] = objCurTransportAddr;
+                    }
+                }
+
+                if (this.strTransportUsername == null || this.strTransportUsername.isEmpty()) {
+                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+                            .put("client.transport.sniff", false).build();
+                    objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class)
+                            .addTransportAddresses(arrConnectionNode);
+                } else {
+                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+                            .put("client.transport.sniff", false)
+                            .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
+                            .build();
+                    objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
+                            .addTransportAddresses(arrConnectionNode);
+                }
+            } catch (Exception objEx) {
+                objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            }
         }
 
         return objESClient;
@@ -179,10 +253,9 @@ public class ElasticConnection {
     }
 
 
-
     @SuppressWarnings("unchecked")
     protected Map<String, Map<String, List<ESFieldModel>>> getFieldsOfIndices(List<String> lstIndex, List<String> lstType,
-                                                                            List<String> lstField, Boolean bIsCheckNull) {
+                                                                              List<String> lstField, Boolean bIsCheckNull) {
         Map<String, Map<String, List<ESFieldModel>>> mapFields = new HashMap<>();
 
         try {
@@ -262,7 +335,7 @@ public class ElasticConnection {
                                 }
                             }
                             mapType.put(strCurType, lstNotNullESField);
-                        } else  {
+                        } else {
                             mapType.put(strCurType, lstESField);
                         }
                     }
@@ -651,7 +724,7 @@ public class ElasticConnection {
 
         for (ESIndexModel objIndex : lstIndex) {
             if ((strIndex.contains("*") && objIndex.getIndex_name().contains(strIndex.replace("*", "")))
-                || (!strIndex.contains("*") && objIndex.getIndex_name().equals(strIndex))) {
+                    || (!strIndex.contains("*") && objIndex.getIndex_name().equals(strIndex))) {
                 bIsExistsIndex = true;
 
                 for (String strIndexType : objIndex.getIndex_types()) {

@@ -28,6 +28,13 @@ public class ElasticService {
         this.objESCluster = new ElasticCluster(this.objESConnection);
     }
 
+    public ElasticService(String strESClusterName, String strListESCoorNodeConnectionString, String strTransportUsername, String strTransportPassword) {
+        this.objESConnection = ElasticConnection.getInstance(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword);
+        this.objESFilter = new ElasticFilter(this.objESConnection);
+        this.objESAction = new ElasticAction(this.objESConnection, this.objESFilter, intNumBulkAction);
+        this.objESCluster = new ElasticCluster(this.objESConnection);
+    }
+
     public static ElasticService getInstance(String strESClusterName, String strESCoorNodeIP,
                                                 Integer intESCoorNodePort) {
         if (instance == null) {
@@ -47,6 +54,19 @@ public class ElasticService {
             synchronized (ElasticService.class) {
                 if (instance == null) {
                     instance = new ElasticService(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strTransportUsername, strTransportPassword);
+                }
+            }
+        }
+
+        return instance;
+    }
+
+    public static ElasticService getInstance(String strESClusterName, String strListESCoorNodeConnectionString,
+                                                String strTransportUsername, String strTransportPassword) {
+        if (instance == null) {
+            synchronized (ElasticConnection.class) {
+                if (instance == null) {
+                    instance = new ElasticService(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword);
                 }
             }
         }
