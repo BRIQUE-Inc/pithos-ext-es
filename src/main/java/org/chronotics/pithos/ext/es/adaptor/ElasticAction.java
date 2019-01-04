@@ -55,6 +55,8 @@ public class ElasticAction {
     ObjectMapper objMapper = new ObjectMapper();
     Random objRandom = new Random();
 
+    Long lScrollTTL = 600000L;
+
     public ElasticAction(ElasticConnection objESConnection, ElasticFilter objESFilter, Integer intNumBulkOperation) {
         this.objESConnection = objESConnection;
         this.objESClient = objESConnection.objESClient;
@@ -788,10 +790,8 @@ public class ElasticAction {
 
         if (bIsFinish) {
             //1. Scroll all rows
-            Long lTimeValue = 60000l;
-
             SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                     .setSize(intNumBulkOperation).get();
 
             Long lCurNumHit = 0l;
@@ -839,7 +839,7 @@ public class ElasticAction {
 
                     //3. Continue to scroll
                     objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                            .setScroll(new TimeValue(lTimeValue)).get();
+                            .setScroll(new TimeValue(lScrollTTL)).get();
                 } else {
                     break;
                 }
@@ -1035,9 +1035,8 @@ public class ElasticAction {
 
                 //Random selected values from selected column
                 //Using scroll api to select random data
-                Long lTimeValue = 60000l;
                 SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
-                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                         .setSize(intNumBulkOperation);
 
                 SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
@@ -1078,9 +1077,8 @@ public class ElasticAction {
                 //Random selected values' indices from 1st selected column and apply for other columns
                 //Random selected values from selected column
                 //Using scroll api to select random data
-                Long lTimeValue = 60000l;
                 SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
-                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                         .setSize(intNumBulkOperation);
 
                 SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
@@ -1145,9 +1143,8 @@ public class ElasticAction {
             ArrayList<Object> lstRandValue = new ArrayList<>();
             //Random selected values from selected column
             //Using scroll api to select random data
-            Long lTimeValue = 60000l;
             SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
-                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                     .setSize(intNumBulkOperation);
 
             SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
@@ -1172,7 +1169,7 @@ public class ElasticAction {
                     }
 
                     objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                            .setScroll(new TimeValue(lTimeValue)).get();
+                            .setScroll(new TimeValue(lScrollTTL)).get();
                 } else {
                     break;
                 }
@@ -1258,10 +1255,9 @@ public class ElasticAction {
 
         if (bIsFinish) {
             //1. Scroll all rows
-            Long lTimeValue = 60000l;
 
             SearchResponse objSearchResponse = objESClient.prepareSearch(objPrep.getIndex()).setTypes(objPrep.getType())
-                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                     .setSize(intNumBulkOperation).get();
 
             Long lCurNumHit = 0L;
@@ -1321,7 +1317,7 @@ public class ElasticAction {
 
                         //3. Continue to scroll
                         objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                                .setScroll(new TimeValue(lTimeValue)).get();
+                                .setScroll(new TimeValue(lScrollTTL)).get();
                     } else {
                         break;
                     }
@@ -1593,10 +1589,8 @@ public class ElasticAction {
 
         if (bIsFinish) {
             //1. Scroll all rows
-            Long lTimeValue = 60000l;
-
             SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                     .setSize(intPageSize).get();
 
             Long lCurNumHit = 0l;
@@ -1640,7 +1634,7 @@ public class ElasticAction {
 
                     //3. Continue to scroll
                     objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                            .setScroll(new TimeValue(lTimeValue)).get();
+                            .setScroll(new TimeValue(lScrollTTL)).get();
                 } else {
                     break;
                 }
@@ -1895,7 +1889,7 @@ public class ElasticAction {
 
                     SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                             .setSource(objSearchSourceBuilder)
-                            .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                            .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                             .setSize(intPageSize).get();
 
                     Integer intCurHitLine = 0;
@@ -1980,7 +1974,7 @@ public class ElasticAction {
                         }
 
                         objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                                .setScroll(new TimeValue(60000)).get();
+                                .setScroll(new TimeValue(lScrollTTL)).get();
                     } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0);
@@ -2100,9 +2094,8 @@ public class ElasticAction {
     public Boolean deleteField(String strIndex, String strType, String strField) {
         String strRemoveScript = "ctx._source.remove(\"" + strField + "\")";
 
-        Long lTimeValue = 60000l;
         SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lTimeValue))
+                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                 .setSize(intNumBulkOperation).get();
         do {
             if (objSearchResponse != null && objSearchResponse.getHits() != null
@@ -2128,7 +2121,7 @@ public class ElasticAction {
                 }
 
                 objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                        .setScroll(new TimeValue(lTimeValue)).get();
+                        .setScroll(new TimeValue(lScrollTTL)).get();
             } else {
                 break;
             }
@@ -2177,7 +2170,7 @@ public class ElasticAction {
 
                 SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                         .setSource(objSearchSourceBuilder)
-                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                         .setSize(intPageSize).get();
 
                 ObjectMapper objCurrentMapper = new ObjectMapper();
@@ -2204,10 +2197,12 @@ public class ElasticAction {
 
                         objBulkProcessor.flush();
                         objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
-                    }
 
-                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                            .setScroll(new TimeValue(60000)).get();
+                        objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                .setScroll(new TimeValue(lScrollTTL)).get();
+                    } else {
+                        break;
+                    }
                 } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                         && objSearchResponse.getHits().getHits() != null
                         && objSearchResponse.getHits().getHits().length > 0);
@@ -2261,7 +2256,7 @@ public class ElasticAction {
 
                 SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                         .setSource(objSearchSourceBuilder)
-                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                         .setSize(intPageSize).get();
 
                 ObjectMapper objCurrentMapper = new ObjectMapper();
@@ -2283,22 +2278,22 @@ public class ElasticAction {
                             String strHitID = lstData.get(intCount).getId();
 
                             for (Map.Entry<String, Object> curUpdateItem : mapUpdateFieldValue.entrySet()) {
-                                if (mapCurHit.containsKey(curUpdateItem.getKey())) {
-                                    mapCurHit.put(curUpdateItem.getKey(), curUpdateItem.getValue());
-                                }
+                                mapCurHit.put(curUpdateItem.getKey(), curUpdateItem.getValue());
                             }
 
-                            objBulkProcessor.add(new UpdateRequest(strIndex, strType, strHitID)
+                            objBulkProcessor.add(new UpdateRequest(lstData.get(intCount).getIndex(), lstData.get(intCount).getType(), strHitID)
                                     .docAsUpsert(true)
                                     .doc(objCurrentMapper.writeValueAsString(mapCurHit), XContentType.JSON));
                         }
 
                         objBulkProcessor.flush();
                         objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
-                    }
 
-                    objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                            .setScroll(new TimeValue(60000)).get();
+                        objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                .setScroll(new TimeValue(lScrollTTL)).get();
+                    } else {
+                        break;
+                    }
                 } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                         && objSearchResponse.getHits().getHits() != null
                         && objSearchResponse.getHits().getHits().length > 0);

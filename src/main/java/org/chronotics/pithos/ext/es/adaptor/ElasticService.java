@@ -82,6 +82,10 @@ public class ElasticService {
         this.objESConnection.bIsUseHotWarm = bIsUseHotWarm;
     }
 
+    public void setNumShards(Integer intNumShards) {
+        this.objESConnection.intNumShards = intNumShards;
+    }
+
     public void closeInstance() {
         objESConnection.closeInstance();
     }
@@ -423,6 +427,17 @@ public class ElasticService {
         return objESFilter.getCustomAggregationValue(strIndex, strType, objCustomQueryBuilder, objCustomAggregationBuilder);
     }
 
+    /**
+     * Custom Aggs List
+     * @param strIndex
+     * @param strType
+     * @param objCustomQueryBuilder
+     * @param lstCustomAggregationBuilder
+     * @return
+     */
+    public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, List<AggregationBuilder> lstCustomAggregationBuilder) {
+        return objESFilter.getCustomAggregationValue(strIndex, strType, objCustomQueryBuilder, lstCustomAggregationBuilder);
+    }
 
     /**
      * Get hits from custom query

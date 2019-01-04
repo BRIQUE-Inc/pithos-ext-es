@@ -55,6 +55,7 @@ public class ElasticConnection {
 
     Integer intNumReplica = 0;
     Boolean bIsUseHotWarm = false;
+    Integer intNumShards = 0;
 
     public static ElasticConnection instance;
 
@@ -150,6 +151,10 @@ public class ElasticConnection {
         this.bIsUseHotWarm = bIsUseHotWarm;
     }
 
+    public void setNumShards(Integer intNumShards) {
+        this.intNumShards = intNumShards;
+    }
+
     @SuppressWarnings("resource")
     protected TransportClient createESClient() {
         TransportClient objESClient = null;
@@ -182,14 +187,18 @@ public class ElasticConnection {
 
         if (arrCoorNodeConnectionString != null && arrCoorNodeConnectionString.length > 0) {
             try {
-                TransportAddress[] arrConnectionNode = new TransportAddress[arrCoorNodeConnectionString.length];
+                List<TransportAddress> arrConnectionNode = new ArrayList<>(); //TransportAddress[arrCoorNodeConnectionString.length];
 
                 for (int intCount = 0; intCount < arrCoorNodeConnectionString.length; intCount++) {
                     String[] arrSplit = arrCoorNodeConnectionString[intCount].split("\\:");
 
                     if (arrSplit.length == 2) {
-                        TransportAddress objCurTransportAddr = new TransportAddress(InetAddress.getByName(arrSplit[0].trim()), Integer.valueOf(arrSplit[1].trim()));
-                        arrConnectionNode[intCount] = objCurTransportAddr;
+                        try {
+                            TransportAddress objCurTransportAddr = new TransportAddress(InetAddress.getByName(arrSplit[0].trim()), Integer.valueOf(arrSplit[1].trim()));
+                            arrConnectionNode.add(objCurTransportAddr);
+                        } catch (Exception objEx) {
+                            objLogger.error("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+                        }
                     }
                 }
 
@@ -197,14 +206,14 @@ public class ElasticConnection {
                     Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
                             .put("client.transport.sniff", false).build();
                     objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class)
-                            .addTransportAddresses(arrConnectionNode);
+                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
                 } else {
                     Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
                             .put("client.transport.sniff", false)
                             .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
                             .build();
                     objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
-                            .addTransportAddresses(arrConnectionNode);
+                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
                 }
             } catch (Exception objEx) {
                 objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
@@ -972,6 +981,9 @@ public class ElasticConnection {
                                 objBuilder.put("index.routing.allocation.require.box_type", "hot");
                             }
 
+                            if (intNumShards > 0) {
+                                objBuilder.put("index.number_of_shards", intNumShards);
+                            }
 
                             objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
                                     .setSettings(objBuilder)

@@ -44,6 +44,8 @@ public class ElasticFilter {
     TransportClient objESClient;
     ObjectMapper objMapper = new ObjectMapper();
 
+    Long lScrollTTL = 600000L;
+
     public ElasticFilter(ElasticConnection objESConnection) {
         this.objESConnection = objESConnection;
         this.objESClient = this.objESConnection.objESClient;
@@ -886,7 +888,7 @@ public class ElasticFilter {
 
     protected SearchResponse searchESWithScan(String strIndex, String strType, Integer intPageSize) {
         SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(60000))
+                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                 .setSize(intPageSize).get();
 
         do {
@@ -897,7 +899,7 @@ public class ElasticFilter {
             }
 
             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                    .setScroll(new TimeValue(60000)).get();
+                    .setScroll(new TimeValue(lScrollTTL)).get();
         } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                 && objSearchResponse.getHits().getHits() != null
                 && objSearchResponse.getHits().getHits().length > 0);
@@ -1146,7 +1148,11 @@ public class ElasticFilter {
     }
 
     public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, AggregationBuilder objCustomAggregationBuilder) {
-        if (objESClient != null && objCustomAggregationBuilder != null) {
+        return getCustomAggregationValue(strIndex, strType, objCustomQueryBuilder, Arrays.asList(objCustomAggregationBuilder));
+    }
+
+    public SearchResponse getCustomAggregationValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, List<AggregationBuilder> lstCustomAggregationBuilder) {
+        if (objESClient != null && lstCustomAggregationBuilder != null && lstCustomAggregationBuilder.size() > 0) {
             try {
                 objESConnection.refreshIndex(strIndex);
 
@@ -1159,7 +1165,9 @@ public class ElasticFilter {
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
                 }
 
-                objSearchRequestBuilder.addAggregation(objCustomAggregationBuilder);
+                for (int intCount = 0; intCount < lstCustomAggregationBuilder.size(); intCount++) {
+                    objSearchRequestBuilder.addAggregation(lstCustomAggregationBuilder.get(intCount));
+                }
 
                 return objSearchRequestBuilder.get(new TimeValue(10, TimeUnit.MINUTES));
             } catch (Exception objEx) {
@@ -1183,7 +1191,7 @@ public class ElasticFilter {
 
                 SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                         .setSource(objSearchSourceBuilder)
-                        .addSort(objFieldSortBuilder).setScroll(new TimeValue(60000))
+                        .addSort(objFieldSortBuilder).setScroll(new TimeValue(lScrollTTL))
                         .setSize(20000).get();
 
                 do {
@@ -1196,7 +1204,7 @@ public class ElasticFilter {
                         lstHit.addAll(lstCurHit);
 
                         objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                                .setScroll(new TimeValue(60000)).get();
+                                .setScroll(new TimeValue(lScrollTTL)).get();
                     } else {
                         break;
                     }
