@@ -2223,7 +2223,7 @@ public class ElasticAction {
         Boolean bIsUpdated = false;
 
         try {
-            if (objESClient != null) {
+            if (objESClient != null && mapUpdateFieldValue != null && mapUpdateFieldValue.size() > 0) {
                 //Refresh index before update
                 objESConnection.refreshIndex(strIndex);
 
@@ -2283,7 +2283,7 @@ public class ElasticAction {
 
                             objBulkProcessor.add(new UpdateRequest(lstData.get(intCount).getIndex(), lstData.get(intCount).getType(), strHitID)
                                     .docAsUpsert(true)
-                                    .doc(objCurrentMapper.writeValueAsString(mapCurHit), XContentType.JSON));
+                                    .doc(objCurrentMapper.writeValueAsString(mapUpdateFieldValue), XContentType.JSON));
                         }
 
                         objBulkProcessor.flush();

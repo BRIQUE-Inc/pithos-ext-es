@@ -267,7 +267,7 @@ public class ElasticFilter {
             objESConnection.refreshIndex(strIndex);
 
             Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
-                    Arrays.asList(strType), null, true);
+                    Arrays.asList(strType), null, false);
 
             if ((mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex))
                     || (strIndex.contains("*"))) {
