@@ -56,6 +56,7 @@ public class ElasticConnection {
     Integer intNumReplica = 0;
     Boolean bIsUseHotWarm = false;
     Integer intNumShards = 0;
+    String strCompressionLevel = "";
 
     public static ElasticConnection instance;
 
@@ -153,6 +154,10 @@ public class ElasticConnection {
 
     public void setNumShards(Integer intNumShards) {
         this.intNumShards = intNumShards;
+    }
+
+    public void setCompressionLevel(String strCompressionLevel) {
+        this.strCompressionLevel = strCompressionLevel;
     }
 
     @SuppressWarnings("resource")
@@ -983,6 +988,10 @@ public class ElasticConnection {
 
                             if (intNumShards > 0) {
                                 objBuilder.put("index.number_of_shards", intNumShards);
+                            }
+
+                            if (strCompressionLevel != null && !strCompressionLevel.isEmpty()) {
+                                objBuilder.put("index.codec", strCompressionLevel);
                             }
 
                             objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)

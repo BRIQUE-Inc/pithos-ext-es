@@ -86,6 +86,10 @@ public class ElasticService {
         this.objESConnection.intNumShards = intNumShards;
     }
 
+    public void setCompressionLevel(String strCompressionLevel) {
+        this.objESConnection.strCompressionLevel = strCompressionLevel;
+    }
+
     public void closeInstance() {
         objESConnection.closeInstance();
     }

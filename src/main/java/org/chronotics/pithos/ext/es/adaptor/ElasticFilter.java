@@ -264,7 +264,7 @@ public class ElasticFilter {
         SearchResponse objSearchResponse = new SearchResponse();
 
         try {
-            objESConnection.refreshIndex(strIndex);
+            //objESConnection.refreshIndex(strIndex);
 
             Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
                     Arrays.asList(strType), null, false);
