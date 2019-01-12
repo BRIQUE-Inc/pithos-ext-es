@@ -919,6 +919,7 @@ public class ElasticConnection {
                             objMappingField.setCopy_to(null);
                             objMappingField.setIndex(null);
                             objMappingField.setNorms(null);
+                            objMappingField.setDoc_values(null);
 
                             if (curItem.getKey().toLowerCase().equals(strDateField.toLowerCase())) {
                                 objMappingField.setType("date");
@@ -935,14 +936,24 @@ public class ElasticConnection {
                                     objMappingField.setType("integer");
                                 } else if (strFieldType.contains(".long")) {
                                     objMappingField.setType("long");
+                                    objMappingField.setIndex(false);
+                                    objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".double")) {
                                     objMappingField.setType("double");
+                                    objMappingField.setIndex(false);
+                                    objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".byte")) {
                                     objMappingField.setType("byte");
+                                    objMappingField.setIndex(false);
+                                    objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".float")) {
                                     objMappingField.setType("float");
+                                    objMappingField.setIndex(false);
+                                    objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".short")) {
                                     objMappingField.setType("short");
+                                    objMappingField.setIndex(false);
+                                    objMappingField.setDoc_values(false);
                                 }
                             }
 
