@@ -5,7 +5,7 @@ import java.util.List;
 public class ESFilterRequestModel {
     String filtered_on_field;
     Integer filtered_operation;
-    List<String> filtered_conditions;
+    List<Object> filtered_conditions;
     Double from_range_condition;
     Double to_range_condition;
 
@@ -25,11 +25,11 @@ public class ESFilterRequestModel {
         this.filtered_operation = filtered_operation;
     }
 
-    public List<String> getFiltered_conditions() {
+    public List<Object> getFiltered_conditions() {
         return filtered_conditions;
     }
 
-    public void setFiltered_conditions(List<String> filtered_conditions) {
+    public void setFiltered_conditions(List<Object> filtered_conditions) {
         this.filtered_conditions = filtered_conditions;
     }
 

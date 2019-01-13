@@ -382,7 +382,7 @@ public class ElasticFilter {
 
             if (strFieldName != null && !strFieldName.isEmpty() && objCurFilterRequest.getFiltered_conditions() != null
                     && objCurFilterRequest.getFiltered_conditions().size() > 0 && mapStats.containsKey(strFieldName)) {
-                String strFieldCondition = objCurFilterRequest.getFiltered_conditions().get(0);
+                String strFieldCondition = objCurFilterRequest.getFiltered_conditions().get(0).toString();
                 ESFieldStatModel objFieldStat = mapStats.get(strFieldName);
                 Double dbFromValue = 0.0;
                 Double dbToValue = 0.0;

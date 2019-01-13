@@ -523,7 +523,7 @@ public class ElasticConnection {
                 intFilterType = objESFilterRequestModel.getFiltered_operation();
 
                 if (lstFields != null && lstFields.size() == 1) {
-                    dbCustomValue = Double.valueOf(objESFilterRequestModel.getFiltered_conditions().get(0));
+                    dbCustomValue = Double.valueOf(objESFilterRequestModel.getFiltered_conditions().get(0).toString());
                 }
 
                 break;

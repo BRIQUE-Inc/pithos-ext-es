@@ -58,7 +58,7 @@ public class ESFilterConverterUtil {
         Boolean bIsSpecialCondition = false;
 
         if (objESFilterRequest != null && objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
-            String strCondition = objESFilterRequest.getFiltered_conditions().get(0);
+            String strCondition = objESFilterRequest.getFiltered_conditions().get(0).toString();
 
             bIsSpecialCondition = strCondition.equals(ESFilterOperationConstant.FILTER_OUTLIER_MILD)
                                     || strCondition.equals(ESFilterOperationConstant.FILTER_OUTLIER_EXTREME)
@@ -103,32 +103,16 @@ public class ESFilterConverterUtil {
                         break;
                     case ESFilterOperationConstant.IS_ONE_OF:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
-                            StringBuilder objORCondition = new StringBuilder();
-
                             for (int intCount = 0; intCount < objESFilterRequest.getFiltered_conditions().size(); intCount++) {
-                                if (intCount > 0) {
-                                    objORCondition.append(" OR ");
-                                }
-
-                                objORCondition.append("(").append(objESFilterRequest.getFiltered_conditions().get(intCount)).append(")");
+                                objQueryBuilder.should(QueryBuilders.termsQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(intCount)));
                             }
-
-                            objQueryBuilder.must(QueryBuilders.queryStringQuery(objORCondition.toString()).field(strFieldOfIndex));
                         }
                         break;
                     case ESFilterOperationConstant.IS_NOT_ONE_OF:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
-                            StringBuilder objORCondition = new StringBuilder();
-
                             for (int intCount = 0; intCount < objESFilterRequest.getFiltered_conditions().size(); intCount++) {
-                                if (intCount > 0) {
-                                    objORCondition.append(" AND ");
-                                }
-
-                                objORCondition.append("(").append(objESFilterRequest.getFiltered_conditions().get(intCount)).append(")");
+                                objQueryBuilder.mustNot(QueryBuilders.termsQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(intCount)));
                             }
-
-                            objQueryBuilder.mustNot(QueryBuilders.queryStringQuery(objORCondition.toString()).field(strFieldOfIndex));
                         }
                         break;
                     case ESFilterOperationConstant.IS_BETWEEN:
