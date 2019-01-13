@@ -211,7 +211,7 @@ public class ElasticService {
     public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
                                                                    List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
                                                                    Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest) {
-        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, null);
+        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, null, false);
     }
 
     /**
@@ -232,6 +232,46 @@ public class ElasticService {
                                                                    List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
                                                                    Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField) {
         return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, lstSortingField);
+    }
+
+    /**
+     * Search data in elastic search without sorting
+     * @param strIndex
+     * @param strType
+     * @param strQuery
+     * @param lstSelectedField
+     * @param intFromRow
+     * @param intNumRow
+     * @param intFromField
+     * @param intNumField
+     * @param intStatsType: 0 - No Statistic, 1 - Simple Statistic, 2 - Complex Statistic
+     * @param objFilterAllRequest
+     * @return
+     */
+    public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
+                                                                   List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
+                                                                   Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, Boolean bIsRefresh) {
+        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, null, bIsRefresh);
+    }
+
+    /**
+     * Search data in elastic search with sorting
+     * @param strIndex
+     * @param strType
+     * @param strQuery
+     * @param lstSelectedField
+     * @param intFromRow
+     * @param intNumRow
+     * @param intFromField
+     * @param intNumField
+     * @param intStatsType: 0 - No Statistic, 1 - Simple Statistic, 2 - Complex Statistic
+     * @param objFilterAllRequest
+     * @return
+     */
+    public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
+                                                                   List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
+                                                                   Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField, Boolean bIsRefresh) {
+        return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, lstSortingField, bIsRefresh);
     }
 
     /**

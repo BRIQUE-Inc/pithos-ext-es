@@ -187,7 +187,6 @@ public class ElasticFilter {
         return mapResult;
     }
 
-    @SuppressWarnings("unchecked")
     public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
                                                                    List<String> lstSelectedField,
                                                                    Integer intFromRow, Integer intNumRow,
@@ -195,6 +194,19 @@ public class ElasticFilter {
                                                                    Integer intStatsType,
                                                                    ESFilterAllRequestModel objFilterAllRequest,
                                                                    List<ESSortingField> lstSortingField) {
+        return searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField,
+                intFromRow, intNumRow, intFromField, intNumField, intStatsType,
+                objFilterAllRequest, lstSortingField, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public HashMap<String, Object> searchDataWithFieldIdxAndRowIdx(String strIndex, String strType, String strQuery,
+                                                                   List<String> lstSelectedField,
+                                                                   Integer intFromRow, Integer intNumRow,
+                                                                   Integer intFromField, Integer intNumField,
+                                                                   Integer intStatsType,
+                                                                   ESFilterAllRequestModel objFilterAllRequest,
+                                                                   List<ESSortingField> lstSortingField, Boolean bIsRefresh) {
         HashMap<String, Object> mapResult = new HashMap<>();
         List<HashMap<String, Object>> lstData = new ArrayList<HashMap<String, Object>>();
         Long lTotalResult = 0L;
@@ -206,7 +218,7 @@ public class ElasticFilter {
 
             ESQueryResultModel objQueryResponseData = getResponseDataFromQueryByFieldIdxAndRowIdx(strIndex, strType,
                     objFilterAllRequest, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField,
-                    intStatsType, lstSortingField);
+                    intStatsType, lstSortingField, bIsRefresh);
 
             if (objQueryResponseData != null && objQueryResponseData.getSearch_response() != null) {
                 SearchResponse objResponseData = objQueryResponseData.getSearch_response();
@@ -259,12 +271,14 @@ public class ElasticFilter {
                                                                              ESFilterAllRequestModel objFilterAllRequest, List<String> lstSelectedField,
                                                                              Integer intFromRow, Integer intNumRow,
                                                                              Integer intFromCol, Integer intNumCol,
-                                                                             Integer intStatsType, List<ESSortingField> lstSortingField) {
+                                                                             Integer intStatsType, List<ESSortingField> lstSortingField, Boolean bIsRefresh) {
         ESQueryResultModel objQueryResult = new ESQueryResultModel();
         SearchResponse objSearchResponse = new SearchResponse();
 
         try {
-            //objESConnection.refreshIndex(strIndex);
+            if (bIsRefresh) {
+                objESConnection.refreshIndex(strIndex);
+            }
 
             Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
                     Arrays.asList(strType), null, false);
