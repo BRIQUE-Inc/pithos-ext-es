@@ -1192,7 +1192,7 @@ public class ElasticFilter {
         return null;
     }
 
-    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder) {
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize) {
         List<SearchHit> lstHit = new ArrayList<>();
 
         try {
@@ -1200,31 +1200,49 @@ public class ElasticFilter {
                 //Refresh index before export
                 objESConnection.refreshIndex(strIndex);
 
-                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
-                objSearchSourceBuilder.query(objCustomQueryBuilder);
+                if (intSize == -1) {
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
 
-                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                        .setSource(objSearchSourceBuilder)
-                        .addSort(objFieldSortBuilder).setScroll(new TimeValue(lScrollTTL))
-                        .setSize(20000).get();
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder).setScroll(new TimeValue(lScrollTTL))
+                            .setSize(20000).get();
 
-                do {
+                    do {
+                        if (objSearchResponse != null && objSearchResponse.getHits() != null
+                                && objSearchResponse.getHits().getTotalHits() > 0
+                                && objSearchResponse.getHits().getHits() != null
+                                && objSearchResponse.getHits().getHits().length > 0) {
+                            List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+
+                            lstHit.addAll(lstCurHit);
+
+                            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                    .setScroll(new TimeValue(lScrollTTL)).get();
+                        } else {
+                            break;
+                        }
+                    } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0);
+                } else if (intSize <= 1000000000) {
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setSize(intSize).get();
+
                     if (objSearchResponse != null && objSearchResponse.getHits() != null
                             && objSearchResponse.getHits().getTotalHits() > 0
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0) {
                         List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
-
                         lstHit.addAll(lstCurHit);
-
-                        objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                                .setScroll(new TimeValue(lScrollTTL)).get();
-                    } else {
-                        break;
                     }
-                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
-                        && objSearchResponse.getHits().getHits() != null
-                        && objSearchResponse.getHits().getHits().length > 0);
+                }
             }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));

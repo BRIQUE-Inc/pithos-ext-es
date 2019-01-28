@@ -492,6 +492,19 @@ public class ElasticService {
      * @return
      */
     public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder) {
-        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder);
+        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, -1);
+    }
+
+    /**
+     * Get hits from custom query
+     * @param strIndex
+     * @param strType
+     * @param objCustomQueryBuilder
+     * @param objFieldSortBuilder
+     * @param intSize == -1: Get all data, < 1000000000: Get some data
+     * @return
+     */
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize) {
+        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize);
     }
 }
