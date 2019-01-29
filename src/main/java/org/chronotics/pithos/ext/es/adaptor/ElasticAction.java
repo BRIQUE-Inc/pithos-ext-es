@@ -2217,6 +2217,76 @@ public class ElasticAction {
         return bIsUpdated;
     }
 
+    public Boolean updateBulkMapDataWithID(String strIndex, String strType, HashMap<String, HashMap<String, Object>> mapIDWithUpdateField) {
+        Boolean bIsUpdated = false;
+
+        try {
+            if (objESClient != null && mapIDWithUpdateField != null && mapIDWithUpdateField.size() > 0) {
+                //Refresh index before update
+                objESConnection.refreshIndex(strIndex);
+
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, 20000);
+
+                for (Map.Entry<String, HashMap<String, Object>> curUpdatedID : mapIDWithUpdateField.entrySet()) {
+                    String strUpdatedID = curUpdatedID.getKey();
+                    Map<String, Object> mapUpdateField = curUpdatedID.getValue();
+
+                    objBulkProcessor.add(new UpdateRequest(strIndex, strType, strUpdatedID).docAsUpsert(true)
+                            .doc(objCurrentMapper.writeValueAsString(mapUpdateField), XContentType.JSON));
+                }
+
+                objBulkProcessor.flush();
+                objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+
+                bIsUpdated = true;
+            }
+        } catch (Exception objEx) {
+            bIsUpdated = false;
+            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return bIsUpdated;
+    }
+
+    public Boolean updateBulkDataWithID(String strIndex, String strType, HashMap<String, Object> mapIDWithUpdateField) {
+        Boolean bIsUpdated = false;
+
+        try {
+            if (objESClient != null && mapIDWithUpdateField != null && mapIDWithUpdateField.size() > 0) {
+                //Refresh index before update
+                objESConnection.refreshIndex(strIndex);
+
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, 20000);
+
+                for (Map.Entry<String, Object> curUpdatedID : mapIDWithUpdateField.entrySet()) {
+                    String strUpdatedID = curUpdatedID.getKey();
+                    Object curUpdatedObj = curUpdatedID.getValue();
+
+                    objBulkProcessor.add(new UpdateRequest(strIndex, strType, strUpdatedID).docAsUpsert(true)
+                            .doc(objCurrentMapper.writeValueAsString(curUpdatedObj), XContentType.JSON));
+                }
+
+                objBulkProcessor.flush();
+                objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+
+                bIsUpdated = true;
+            }
+        } catch (Exception objEx) {
+            bIsUpdated = false;
+            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        return bIsUpdated;
+    }
+
     public Boolean updateBulkData(String strIndex, String strType,
                                   ESFilterAllRequestModel objFilterAllRequest, HashMap<String, Object> mapUpdateFieldValue,
                                   Integer intPageSize) {

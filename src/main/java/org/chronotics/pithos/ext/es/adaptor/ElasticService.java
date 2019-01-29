@@ -440,6 +440,28 @@ public class ElasticService {
     }
 
     /**
+     * Update data with ID
+     * @param strIndex
+     * @param strType
+     * @param mapIDWithUpdateField
+     * @return
+     */
+    public Boolean updateBulkMapDataWithID(String strIndex, String strType, HashMap<String, HashMap<String, Object>> mapIDWithUpdateField) {
+        return objESAction.updateBulkMapDataWithID(strIndex, strType, mapIDWithUpdateField);
+    }
+
+    /**
+     * Update data with ID
+     * @param strIndex
+     * @param strType
+     * @param mapIDWithUpdateField
+     * @return
+     */
+    public Boolean updateBulkDataWithID(String strIndex, String strType, HashMap<String, Object> mapIDWithUpdateField) {
+        return objESAction.updateBulkDataWithID(strIndex, strType, mapIDWithUpdateField);
+    }
+
+    /**
      * Delete data from ElasticSearch with custom query
      * @param strIndex
      * @param strType
