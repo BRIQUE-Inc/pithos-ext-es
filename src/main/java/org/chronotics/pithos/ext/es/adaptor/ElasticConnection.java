@@ -889,7 +889,8 @@ public class ElasticConnection {
 
                                 if (mapFieldDataType == null || !mapFieldDataType.containsKey(curItem.getKey())) {
                                     try {
-                                        Object objValue = ConverterUtil.convertStringToDataType(curItem.getValue().toString());
+                                        objLogger.info("original Value: " + curItem.getValue());
+                                        Object objValue = ConverterUtil.convertObjectToDataType(curItem.getValue());
                                         objLogger.info("objValue: " + objValue);
 
                                         strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
@@ -939,7 +940,7 @@ public class ElasticConnection {
                                     objMappingField.setIndex(false);
                                     objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".double")) {
-                                    objMappingField.setType("double");
+                                    objMappingField.setType("float");
                                     objMappingField.setIndex(false);
                                     objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".byte")) {

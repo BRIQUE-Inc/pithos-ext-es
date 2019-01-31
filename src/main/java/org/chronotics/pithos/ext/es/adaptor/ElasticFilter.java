@@ -1192,13 +1192,15 @@ public class ElasticFilter {
         return null;
     }
 
-    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize) {
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize, Boolean bShouldRefresh) {
         List<SearchHit> lstHit = new ArrayList<>();
 
         try {
             if (objESClient != null && objCustomQueryBuilder != null) {
                 //Refresh index before export
-                objESConnection.refreshIndex(strIndex);
+                if (bShouldRefresh) {
+                    objESConnection.refreshIndex(strIndex);
+                }
 
                 if (intSize == -1) {
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();

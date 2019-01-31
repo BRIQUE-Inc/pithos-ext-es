@@ -413,6 +413,23 @@ public class ElasticService {
     }
 
     /**
+     * Insert hashmap data to ElasticSearch
+     * @param strIndex
+     * @param strType
+     * @param lstData
+     * @param strFieldDate
+     * @param lstFieldModel
+     * @param bIsUsedAutoID
+     * @param strDocIdPrefix
+     * @param mapPredefinedDataType
+     * @return
+     */
+    public Boolean insertBulkHashData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel,
+                                      Boolean bIsUsedAutoID, String strDocIdPrefix, HashMap<String, String> mapPredefinedDataType) {
+        return objESAction.insertBulkHashData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix, mapPredefinedDataType);
+    }
+
+    /**
      * Update data back to ElasticSearch
      * @param strIndex
      * @param strType
@@ -514,7 +531,7 @@ public class ElasticService {
      * @return
      */
     public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder) {
-        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, -1);
+        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, -1, false);
     }
 
     /**
@@ -527,6 +544,10 @@ public class ElasticService {
      * @return
      */
     public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize) {
-        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize);
+        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize, false);
+    }
+
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize, Boolean bShouldRefresh) {
+        return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize, bShouldRefresh);
     }
 }
