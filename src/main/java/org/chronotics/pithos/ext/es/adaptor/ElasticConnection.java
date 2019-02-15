@@ -937,8 +937,6 @@ public class ElasticConnection {
                                     objMappingField.setType("integer");
                                 } else if (strFieldType.contains(".long")) {
                                     objMappingField.setType("long");
-                                    objMappingField.setIndex(false);
-                                    objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".double")) {
                                     objMappingField.setType("float");
                                     objMappingField.setIndex(false);
