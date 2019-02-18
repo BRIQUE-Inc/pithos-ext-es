@@ -351,6 +351,30 @@ public class ElasticService {
     }
 
     /**
+     * Export Master - Detail Index from ES
+     * @param strMasterIndex
+     * @param strMasterType
+     * @param strDetailIndex
+     * @param strDetailType
+     * @param strMasterJoinField
+     * @param strDetailJoinField
+     * @param intPageSize
+     * @param objFilterAllRequest
+     * @param strFileName
+     * @param bIsMultipleFile
+     * @param intMaxFileLine
+     * @return
+     */
+    public List<ESFileModel> exportESMasterDetailDataToCSV(String strMasterIndex, String strMasterType,
+                                                           String strDetailIndex, String strDetailType,
+                                                           String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
+                                                           ESFilterAllRequestModel objFilterAllRequest, String strFileName,
+                                                           Boolean bIsMultipleFile, Integer intMaxFileLine) {
+        return objESAction.exportESMasterDetailDataToCSV(strMasterIndex, strMasterType, strDetailIndex, strDetailType, strMasterJoinField, strDetailJoinField,
+                intPageSize, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
+    }
+
+    /**
      * Update index with some actions
      * @param lstPrepOp
      * @return
