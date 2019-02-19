@@ -375,6 +375,34 @@ public class ElasticService {
     }
 
     /**
+     * Export transposing data row -> column
+     * @param strMasterIndex
+     * @param strMasterType
+     * @param strTransposeIndex
+     * @param strTransposeType
+     * @param strMasterJoinField
+     * @param strTransposeJoinField
+     * @param lstTransposeFieldName
+     * @param strFieldNameSeparator
+     * @param lstTransposeFieldValue
+     * @param intPageSize
+     * @param objFilterAllRequest
+     * @param strFileName
+     * @return
+     */
+    public List<ESFileModel> exportESTransposeDataToCSV(String strMasterIndex, String strMasterType,
+                                                        String strTransposeIndex, String strTransposeType,
+                                                        String strMasterJoinField, String strTransposeJoinField,
+                                                        List<String> lstTransposeFieldName, String strFieldNameSeparator,
+                                                        List<String> lstTransposeFieldValue, Integer intPageSize,
+                                                        ESFilterAllRequestModel objFilterAllRequest, String strFileName) {
+        return objESAction.exportESTransposeDataToCSV(strMasterIndex, strMasterType, strTransposeIndex, strTransposeType,
+                strMasterJoinField, strTransposeJoinField,
+                lstTransposeFieldName, strFieldNameSeparator, lstTransposeFieldValue,
+                intPageSize, objFilterAllRequest, strFileName);
+    }
+
+    /**
      * Update index with some actions
      * @param lstPrepOp
      * @return

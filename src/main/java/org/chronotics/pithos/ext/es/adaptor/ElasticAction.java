@@ -43,6 +43,7 @@ import scala.Int;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -434,7 +435,7 @@ public class ElasticAction {
                         if (false == bulkResponse.getItems()[i].isFailed()) {
                             continue;
                         }
-                        objLogger.warn("ERR: [" + bulkRequest.requests().get(i) +  "]: [" + ExceptionUtil.getStrackTrace(bulkResponse.getItems()[i].getFailure().getCause()) + "]");
+                        objLogger.warn("ERR: [" + bulkRequest.requests().get(i) + "]: [" + ExceptionUtil.getStrackTrace(bulkResponse.getItems()[i].getFailure().getCause()) + "]");
                     }
                 }
 
@@ -1181,8 +1182,8 @@ public class ElasticAction {
 
             ArrayList<Object> lstFinal = new ArrayList<>();
 
-            for (long lCount = 0L; lCount < lstRandValue.size(); lCount+= dbStep.longValue()) {
-                lstFinal.add(lstRandValue.get((int)lCount));
+            for (long lCount = 0L; lCount < lstRandValue.size(); lCount += dbStep.longValue()) {
+                lstFinal.add(lstRandValue.get((int) lCount));
             }
 
             mapGenerateValue.put(objPrep.getNew_fields().get(0), lstFinal);
@@ -1761,7 +1762,7 @@ public class ElasticAction {
     }
 
     private Boolean writeESDataToCSVFile(FileWriter objFileWriter, SearchHit[] arrSearchHit,
-                                           Boolean bIsIncludeHeader) {
+                                         Boolean bIsIncludeHeader) {
         Boolean bIsWrote = true;
 
         try {
@@ -1966,7 +1967,7 @@ public class ElasticAction {
 
                             if (bIsMultipleFile && intMaxFileLine > 0) {
                                 intCurHitLine = objSearchResponse.getHits().getHits().length;
-                                Integer intCurTotalLine= intLastWriteLine + intCurHitLine;
+                                Integer intCurTotalLine = intLastWriteLine + intCurHitLine;
 
                                 if (intCurTotalLine >= intMaxFileLine) {
                                     Boolean bIsContinue = false;
@@ -2054,10 +2055,10 @@ public class ElasticAction {
     }
 
     public List<ESFileModel> exportESMasterDetailDataToCSV(String strMasterIndex, String strMasterType,
-                                                       String strDetailIndex, String strDetailType,
-                                                       String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
-                                                       ESFilterAllRequestModel objFilterAllRequest, String strFileName,
-                                                       Boolean bIsMultipleFile, Integer intMaxFileLine) {
+                                                           String strDetailIndex, String strDetailType,
+                                                           String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
+                                                           ESFilterAllRequestModel objFilterAllRequest, String strFileName,
+                                                           Boolean bIsMultipleFile, Integer intMaxFileLine) {
         Boolean bIsExported = true;
         List<ESFileModel> lstReturnFile = new ArrayList<>();
         List<String> lstExportedFile = new ArrayList<>();
@@ -2205,7 +2206,7 @@ public class ElasticAction {
 
                                 if (bIsMultipleFile && intMaxFileLine > 0) {
                                     intCurHitLine = objSearchResponse.getHits().getHits().length;
-                                    Integer intCurTotalLine= intLastWriteLine + intCurHitLine;
+                                    Integer intCurTotalLine = intLastWriteLine + intCurHitLine;
 
                                     if (intCurTotalLine >= intMaxFileLine) {
                                         Boolean bIsContinue = false;
@@ -2214,7 +2215,7 @@ public class ElasticAction {
                                             Integer intNeedToWrite = intMaxFileLine - intLastWriteLine;
                                             List<SearchHit> lstHit = Arrays.asList(objSearchResponse.getHits().getHits()).stream().skip(intCurSkipLine).limit(intNeedToWrite).collect(Collectors.toList());
 
-                                            bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField,  mapMasterData, lstDetailHeader);
+                                            bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField, mapMasterData, lstDetailHeader);
 
                                             objFileWriter.flush();
                                             objFileWriter.close();
@@ -2242,7 +2243,7 @@ public class ElasticAction {
                                                         intLastWriteLine = lstRemainHit.size();
                                                         intCurSkipLine = lstRemainHit.size();
 
-                                                        bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField,  mapMasterData, lstDetailHeader);
+                                                        bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField, mapMasterData, lstDetailHeader);
                                                     } else {
                                                         intLastWriteLine = 0;
                                                         intCurSkipLine = 0;
@@ -2254,10 +2255,10 @@ public class ElasticAction {
                                         } while (!bIsContinue);
                                     } else {
                                         List<SearchHit> lstHit = Arrays.asList(objSearchResponse.getHits().getHits()).stream().skip(intCurSkipLine).collect(Collectors.toList());
-                                        bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField,  mapMasterData, lstDetailHeader);
+                                        bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField, mapMasterData, lstDetailHeader);
                                     }
                                 } else {
-                                    bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, objSearchResponse.getHits().getHits(), strDetailJoinField,  mapMasterData, lstDetailHeader);
+                                    bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, objSearchResponse.getHits().getHits(), strDetailJoinField, mapMasterData, lstDetailHeader);
                                 }
 
                                 if (!bIsWriteCSV) {
@@ -2281,6 +2282,235 @@ public class ElasticAction {
                             lstExportedFile.add(strNewFile);
                         }
                     }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.warn("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        Long lElapsedTime = Calendar.getInstance().getTimeInMillis() - objBegin.getTimeInMillis();
+
+        if (lstExportedFile != null && lstExportedFile.size() > 0) {
+            for (int intCount = 0; intCount < lstExportedFile.size(); intCount++) {
+                File objFile = new File(lstExportedFile.get(intCount));
+
+                if (objFile.exists()) {
+                    ESFileModel objCurFileModel = new ESFileModel();
+                    objCurFileModel.setFile_name(objFile.getName());
+                    objCurFileModel.setFile_path(objFile.getAbsolutePath());
+                    objCurFileModel.setFile_size(objFile.length());
+                    objCurFileModel.setProcessed_time(lElapsedTime);
+
+                    lstReturnFile.add(objCurFileModel);
+                }
+            }
+        }
+
+        return lstReturnFile;
+    }
+
+    public List<ESFileModel> exportESTransposeDataToCSV(String strMasterIndex, String strMasterType,
+                                                        String strTransposeIndex, String strTransposeType,
+                                                        String strMasterJoinField, String strTransposeJoinField,
+                                                        List<String> lstTransposeFieldName, String strFieldNameSeparator,
+                                                        List<String> lstTransposeFieldValue, Integer intPageSize,
+                                                        ESFilterAllRequestModel objFilterAllRequest, String strFileName) {
+        Boolean bIsExported = true;
+        List<ESFileModel> lstReturnFile = new ArrayList<>();
+        List<String> lstExportedFile = new ArrayList<>();
+
+        Calendar objBegin = Calendar.getInstance();
+
+        try {
+            //- Get all data from master index with filter
+            //- Generate Master CSV String Format map with key: join field
+            //  - Master CSV Header
+            //  - Master CSV Data Map (join_field -> csv string)
+
+            //Refresh index before export
+            List<String> lstMasterHeader = new ArrayList<>();
+            Map<String, String> mapMasterData = new HashMap<>();
+
+            objESConnection.refreshIndex(strMasterIndex);
+
+            List<ESFieldModel> lstFieldModel = objESConnection.getFieldsMetaData(strMasterIndex, strMasterType, null, false);
+
+            List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
+                    && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
+                    ? objFilterAllRequest.getFilters()
+                    : new ArrayList<ESFilterRequestModel>();
+
+            Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
+
+            SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+
+            if (lstFilters != null && lstFilters.size() > 0) {
+                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilters, lstFieldModel, new ArrayList<>(), bIsReversedFilter);
+                BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
+
+                List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
+
+                if (objQueryBuilder != null) {
+                    if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
+                        objQueryBuilder = objESFilter.generateAggQueryBuilder(strMasterIndex, strMasterType, objQueryBuilder,
+                                lstNotAddedFilterRequest, lstFieldModel);
+                    }
+
+                    objSearchSourceBuilder.query(objQueryBuilder);
+                }
+
+                lstMasterHeader = lstFieldModel.stream().map(curItem -> curItem.getFull_name()).collect(Collectors.toList());
+            }
+
+            SearchResponse objSearchResponse = objESClient.prepareSearch(strMasterIndex).setTypes(strMasterType)
+                    .setSource(objSearchSourceBuilder)
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
+                    .setSize(intPageSize).get();
+
+            do {
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    for (SearchHit objCurHit : objSearchResponse.getHits().getHits()) {
+                        Map<String, Object> mapCurHit = objCurHit.getSourceAsMap();
+
+                        if (mapCurHit.containsKey(strMasterJoinField)) {
+                            String strCurJoinID = mapCurHit.get(strMasterJoinField).toString();
+                            List<String> lstCurHit = new ArrayList<>();
+
+                            for (int intCount = 0; intCount < lstMasterHeader.size(); intCount++) {
+                                if (mapCurHit.containsKey(lstMasterHeader.get(intCount))) {
+                                    lstCurHit.add(mapCurHit.get(lstMasterHeader.get(intCount)).toString());
+                                } else {
+                                    lstCurHit.add("");
+                                }
+                            }
+
+                            mapMasterData.put(strCurJoinID, Strings.join(lstCurHit, ","));
+                        }
+                    }
+                }
+
+                objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                        .setScroll(new TimeValue(lScrollTTL)).get();
+            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0);
+
+            //- Get data from transpose index and transposing
+            List<Object> lstAllHeader = new ArrayList<>();
+            List<String> lstAllParam = new ArrayList<>();
+            lstAllHeader.addAll(lstMasterHeader);
+
+            ConcurrentHashMap<String, Boolean> mapTransposeParam = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, HashMap<String, Object>> mapTransposeData = new ConcurrentHashMap<>();
+            objESConnection.refreshIndex(strTransposeIndex);
+
+            mapMasterData.keySet().parallelStream().forEach(curHeaderID -> {
+                //- Create filter on data index with list of master join field from master data
+                BoolQueryBuilder objDetailQueryBuilder = new BoolQueryBuilder();
+                TermQueryBuilder objHeaderQueryBuilder = QueryBuilders.termQuery(strTransposeJoinField, curHeaderID);
+                objDetailQueryBuilder.must(objHeaderQueryBuilder);
+
+                //- Scroll on data index to query data and write to CSV files
+                SearchSourceBuilder objTransposeSearchSourceBuilder = new SearchSourceBuilder();
+                objTransposeSearchSourceBuilder.query(objDetailQueryBuilder);
+
+                SearchResponse objTransposeSearchResponse = objESClient.prepareSearch(strTransposeIndex).setTypes(strTransposeType)
+                        .setSource(objTransposeSearchSourceBuilder)
+                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
+                        .setSize(intPageSize).get();
+
+                HashMap<String, Object> mapParamValue = new HashMap<>();
+
+                do {
+                    if (objTransposeSearchResponse != null && objTransposeSearchResponse.getHits() != null
+                            && objTransposeSearchResponse.getHits().getTotalHits() > 0
+                            && objTransposeSearchResponse.getHits().getHits() != null
+                            && objTransposeSearchResponse.getHits().getHits().length > 0) {
+                        for (SearchHit curHit : objTransposeSearchResponse.getHits().getHits()) {
+                            Map<String, Object> mapCurHit = curHit.getSourceAsMap();
+
+                            List<String> lstCurFieldNameValue = new ArrayList<>();
+                            Boolean bIsAllExist = true;
+
+                            for (int intCount = 0; intCount < lstTransposeFieldName.size(); intCount++) {
+                                if (mapCurHit.containsKey(lstTransposeFieldName.get(intCount))) {
+                                    lstCurFieldNameValue.add(mapCurHit.get(lstTransposeFieldName.get(intCount)).toString());
+                                } else {
+                                    bIsAllExist = false;
+                                    break;
+                                }
+                            }
+                            if (bIsAllExist) {
+                                String strCurKey = Strings.join(lstCurFieldNameValue, strFieldNameSeparator);
+                                mapTransposeParam.put(strCurKey, true);
+
+                                for (int intCountValField = 0; intCountValField < lstTransposeFieldValue.size(); intCountValField++) {
+                                    if (mapCurHit.containsKey(lstTransposeFieldValue.get(intCountValField))) {
+                                        mapParamValue.put(strCurKey, mapCurHit.get(lstTransposeFieldValue.get(intCountValField)));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    objTransposeSearchResponse = objESClient.prepareSearchScroll(objTransposeSearchResponse.getScrollId())
+                            .setScroll(new TimeValue(lScrollTTL)).get();
+                } while (objTransposeSearchResponse.getHits() != null && objTransposeSearchResponse.getHits().getTotalHits() > 0
+                        && objTransposeSearchResponse.getHits().getHits() != null
+                        && objTransposeSearchResponse.getHits().getHits().length > 0);
+
+                mapTransposeData.put(curHeaderID, mapParamValue);
+            });
+
+            //-Convert map transpose data to list
+            lstAllParam.addAll(mapTransposeParam.keySet());
+            lstAllHeader.addAll(lstAllParam);
+            ConcurrentHashMap<String, List<Object>> mapConversion = new ConcurrentHashMap<>();
+
+            mapMasterData.keySet().parallelStream().forEach(curHeaderID -> {
+                String strMasterCSV = mapMasterData.get(curHeaderID);
+                List<String> lstCurParam = new ArrayList<>();
+                Map<String, Object> mapCurParam = mapTransposeData.get(curHeaderID);
+
+                for (int intCountParam = 0; intCountParam < lstAllParam.size(); intCountParam++) {
+                    if (mapCurParam.containsKey(lstAllParam.get(intCountParam))) {
+                        lstCurParam.add(mapCurParam.get(lstAllParam.get(intCountParam)).toString());
+                    } else {
+                        lstCurParam.add("");
+                    }
+                }
+
+                mapConversion.put(curHeaderID, Arrays.asList(strMasterCSV, Strings.join(lstCurParam, ",")));
+            });
+
+            //-Write CSV
+            String strNewFile = FileUtil.createFile(strFileName);
+
+            if (strNewFile != null && !strNewFile.isEmpty()) {
+                FileWriter objFileWriter = new FileWriter(strNewFile, true);
+
+                //Write Header
+                CSVUtil.writeLine(objFileWriter, lstAllHeader, ',');
+                //Write Data
+                mapConversion.forEach((curKey, curData) -> {
+                    try {
+                        CSVUtil.writeLine(objFileWriter, curData, ',');
+                    } catch (Exception objEx) {
+                        objLogger.warn("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+                    }
+                });
+
+                lstExportedFile.add(strNewFile);
+
+                if (objFileWriter != null) {
+                    objFileWriter.flush();
+                    objFileWriter.close();
+
+                    lstExportedFile.add(strNewFile);
                 }
             }
         } catch (Exception objEx) {
@@ -2730,7 +2960,7 @@ public class ElasticAction {
 
                     bIsUpdated = true;
                 }
-             }
+            }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }

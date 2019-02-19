@@ -8,6 +8,7 @@ public class ESFilterAllRequestModel {
     List<String> selected_fields = new ArrayList<>();
     List<String> deleted_rows = new ArrayList<>();
     List<ESFilterRequestModel> filters = new ArrayList<>();
+    List<ESFilterRequestModel> outside_filters = new ArrayList<>();
 
     public Boolean getIs_reversed() {
         return is_reversed;
@@ -39,5 +40,13 @@ public class ESFilterAllRequestModel {
 
     public void setDeleted_rows(List<String> deleted_rows) {
         this.deleted_rows = deleted_rows;
+    }
+
+    public List<ESFilterRequestModel> getOutside_filters() {
+        return outside_filters;
+    }
+
+    public void setOutside_filters(List<ESFilterRequestModel> outside_filters) {
+        this.outside_filters = outside_filters;
     }
 }
