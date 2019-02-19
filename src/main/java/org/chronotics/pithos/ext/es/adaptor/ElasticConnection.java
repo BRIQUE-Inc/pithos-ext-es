@@ -940,7 +940,7 @@ public class ElasticConnection {
                                 } else if (strFieldType.contains(".double")) {
                                     objMappingField.setType("float");
                                     objMappingField.setIndex(false);
-                                    objMappingField.setDoc_values(false);
+                                    objMappingField.setDoc_values(true);
                                 } else if (strFieldType.contains(".byte")) {
                                     objMappingField.setType("byte");
                                     objMappingField.setIndex(false);
@@ -948,7 +948,7 @@ public class ElasticConnection {
                                 } else if (strFieldType.contains(".float")) {
                                     objMappingField.setType("float");
                                     objMappingField.setIndex(false);
-                                    objMappingField.setDoc_values(false);
+                                    objMappingField.setDoc_values(true);
                                 } else if (strFieldType.contains(".short")) {
                                     objMappingField.setType("short");
                                     objMappingField.setIndex(false);

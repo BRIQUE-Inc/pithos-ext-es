@@ -85,7 +85,7 @@ public class ESFilterConverterUtil {
                     case ESFilterOperationConstant.IS:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
                             if (!bIsSpecialCondition) {
-                                objQueryBuilder.must(QueryBuilders.matchQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(0)));
+                                objQueryBuilder.must(QueryBuilders.termQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(0)));
                             } else {
                                 bIsAdded = false;
                             }
@@ -95,7 +95,7 @@ public class ESFilterConverterUtil {
                     case ESFilterOperationConstant.IS_NOT:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
                             if (!bIsSpecialCondition) {
-                                objQueryBuilder.mustNot(QueryBuilders.matchQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(0)));
+                                objQueryBuilder.mustNot(QueryBuilders.termQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(0)));
                             } else {
                                 bIsAdded = false;
                             }
@@ -103,16 +103,24 @@ public class ESFilterConverterUtil {
                         break;
                     case ESFilterOperationConstant.IS_ONE_OF:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
+                            BoolQueryBuilder objShouldQueryBuilder = new BoolQueryBuilder();
+
                             for (int intCount = 0; intCount < objESFilterRequest.getFiltered_conditions().size(); intCount++) {
-                                objQueryBuilder.should(QueryBuilders.termsQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(intCount)));
+                                objShouldQueryBuilder.should(QueryBuilders.termsQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(intCount)));
                             }
+
+                            objQueryBuilder.must(objShouldQueryBuilder);
                         }
                         break;
                     case ESFilterOperationConstant.IS_NOT_ONE_OF:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
+                            BoolQueryBuilder objShouldQueryBuilder = new BoolQueryBuilder();
+
                             for (int intCount = 0; intCount < objESFilterRequest.getFiltered_conditions().size(); intCount++) {
-                                objQueryBuilder.mustNot(QueryBuilders.termsQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(intCount)));
+                                objShouldQueryBuilder.mustNot(QueryBuilders.termsQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(intCount)));
                             }
+
+                            objQueryBuilder.must(objShouldQueryBuilder);
                         }
                         break;
                     case ESFilterOperationConstant.IS_BETWEEN:
