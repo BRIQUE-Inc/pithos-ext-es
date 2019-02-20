@@ -54,6 +54,9 @@ public class ESConverterUtil {
                             case ESFilterOperationConstant.DATA_TYPE_SHORT:
                                 objNewValue = Short.valueOf(strValue);
                                 break;
+                            default:
+                                objNewValue = item.getValue();
+                                break;
                         }
                     } catch (Exception objEx) {
                         objNewValue = item.getValue();
@@ -63,6 +66,8 @@ public class ESConverterUtil {
                 } else {
                     mapNew.put(strNewField, null);
                 }
+            } else {
+                mapNew.put(strNewField, item.getValue());
             }
         }
 
