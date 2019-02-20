@@ -368,10 +368,11 @@ public class ElasticService {
     public List<ESFileModel> exportESMasterDetailDataToCSV(String strMasterIndex, String strMasterType,
                                                            String strDetailIndex, String strDetailType,
                                                            String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
+                                                           List<String> lstPredefineHeader,
                                                            ESFilterAllRequestModel objFilterAllRequest, String strFileName,
                                                            Boolean bIsMultipleFile, Integer intMaxFileLine) {
         return objESAction.exportESMasterDetailDataToCSV(strMasterIndex, strMasterType, strDetailIndex, strDetailType, strMasterJoinField, strDetailJoinField,
-                intPageSize, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
+                intPageSize, lstPredefineHeader, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
     }
 
     /**

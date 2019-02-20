@@ -2057,6 +2057,7 @@ public class ElasticAction {
     public List<ESFileModel> exportESMasterDetailDataToCSV(String strMasterIndex, String strMasterType,
                                                            String strDetailIndex, String strDetailType,
                                                            String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
+                                                           List<String> lstPredefineHeader,
                                                            ESFilterAllRequestModel objFilterAllRequest, String strFileName,
                                                            Boolean bIsMultipleFile, Integer intMaxFileLine) {
         Boolean bIsExported = true;
@@ -2104,6 +2105,10 @@ public class ElasticAction {
                 }
 
                 lstMasterHeader = lstFieldModel.stream().map(curItem -> curItem.getFull_name()).collect(Collectors.toList());
+
+                if (lstPredefineHeader != null && lstPredefineHeader.size() > 0) {
+                    lstMasterHeader = lstMasterHeader.stream().filter(curHeader -> lstPredefineHeader.contains(curHeader)).collect(Collectors.toList());
+                }
             }
 
             SearchResponse objSearchResponse = objESClient.prepareSearch(strMasterIndex).setTypes(strMasterType)
@@ -2166,6 +2171,10 @@ public class ElasticAction {
 
                 if (lstFieldModel != null && lstFieldModel.size() > 0) {
                     lstDetailHeader = lstFieldModel.stream().map(curItem -> curItem.getFull_name()).collect(Collectors.toList());
+
+                    if (lstPredefineHeader != null && lstPredefineHeader.size() > 0) {
+                        lstDetailHeader = lstDetailHeader.stream().filter(curHeader -> lstPredefineHeader.contains(curHeader)).collect(Collectors.toList());
+                    }
 
                     List<String> lstMergeHeader = new ArrayList<>();
 
