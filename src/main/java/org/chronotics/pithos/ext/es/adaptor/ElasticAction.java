@@ -2513,8 +2513,6 @@ public class ElasticAction {
                     }
                 });
 
-                lstExportedFile.add(strNewFile);
-
                 if (objFileWriter != null) {
                     objFileWriter.flush();
                     objFileWriter.close();
