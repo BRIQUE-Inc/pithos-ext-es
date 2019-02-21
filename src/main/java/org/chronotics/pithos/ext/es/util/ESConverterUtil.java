@@ -6,6 +6,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class ESConverterUtil {
     public static HashMap<String, Object> convertMapToMapType(HashMap<String, Object> mapOriginal, List<ESFieldModel> lstField) {
@@ -72,5 +75,10 @@ public class ESConverterUtil {
         }
 
         return mapNew;
+    }
+
+    public static <T> Predicate<T> distinctByKey(Function<? super T,Object> keyExtractor) {
+        Map<Object,String> seen = new ConcurrentHashMap<>();
+        return t -> seen.put(keyExtractor.apply(t), "") == null;
     }
 }

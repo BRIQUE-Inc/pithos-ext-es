@@ -26,12 +26,11 @@ public class ESFieldModel {
 
     @Override
     public boolean equals(Object that) {
-        if (that instanceof ESFieldModel) {
+        if (that != null && that instanceof ESFieldModel) {
             ESFieldModel objThat = (ESFieldModel)that;
 
-            if (objThat.getFull_name().equals(this.full_name)
-                && objThat.getType().equals(this.type)
-                && objThat.getFielddata().equals(this.fielddata)) {
+            if (objThat.getFull_name() != null && this.full_name != null
+                    && objThat.getFull_name().equals(this.full_name)) {
                 return true;
             } else {
                 return false;

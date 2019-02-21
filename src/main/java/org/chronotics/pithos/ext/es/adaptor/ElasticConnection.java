@@ -1142,7 +1142,7 @@ public class ElasticConnection {
                 }
 
                 if (lstReturnField != null && lstReturnField.size() > 0) {
-                    lstReturnField = lstReturnField.stream().distinct().collect(Collectors.toList());
+                    lstReturnField = lstReturnField.stream().filter(ESConverterUtil.distinctByKey(ESFieldModel::getFull_name)).collect(Collectors.toList());
                 }
             }
         } catch (Exception objEx) {

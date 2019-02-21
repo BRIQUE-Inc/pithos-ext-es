@@ -5,6 +5,7 @@ import org.chronotics.pandora.java.exception.ExceptionUtil;
 import org.chronotics.pandora.java.log.Logger;
 import org.chronotics.pandora.java.log.LoggerFactory;
 import org.chronotics.pithos.ext.es.model.*;
+import org.chronotics.pithos.ext.es.util.ESConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterOperationConstant;
 import org.elasticsearch.action.search.SearchRequestBuilder;
@@ -297,7 +298,7 @@ public class ElasticFilter {
                     }
 
                     if (lstFieldModel != null && lstFieldModel.size() > 0) {
-                        lstFieldModel = lstFieldModel.stream().distinct().collect(Collectors.toList());
+                        lstFieldModel = lstFieldModel.stream().filter(ESConverterUtil.distinctByKey(ESFieldModel::getFull_name)).distinct().collect(Collectors.toList());
                     }
                 } else {
                     if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
