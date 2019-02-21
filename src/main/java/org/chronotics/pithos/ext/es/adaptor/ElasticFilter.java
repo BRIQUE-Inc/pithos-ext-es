@@ -292,9 +292,12 @@ public class ElasticFilter {
 
                     for (Map.Entry<String, Map<String, List<ESFieldModel>>> curEntry : mapFieldOfIndex.entrySet()) {
                         if (curEntry.getKey().contains(strIndexPattern)) {
-                            lstFieldModel = curEntry.getValue().get(strType);
-                            break;
+                            lstFieldModel.addAll(curEntry.getValue().get(strType));
                         }
+                    }
+
+                    if (lstFieldModel != null && lstFieldModel.size() > 0) {
+                        lstFieldModel = lstFieldModel.stream().distinct().collect(Collectors.toList());
                     }
                 } else {
                     if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0

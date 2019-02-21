@@ -23,4 +23,21 @@ public class ESFieldModel {
     public void setFielddata(Boolean fielddata) {
         this.fielddata = fielddata;
     }
+
+    @Override
+    public boolean equals(Object that) {
+        if (that instanceof ESFieldModel) {
+            ESFieldModel objThat = (ESFieldModel)that;
+
+            if (objThat.getFull_name().equals(this.full_name)
+                && objThat.getType().equals(this.type)
+                && objThat.getFielddata().equals(this.fielddata)) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
 }

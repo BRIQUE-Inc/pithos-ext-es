@@ -2182,6 +2182,12 @@ public class ElasticAction {
                         lstDetailHeader.remove(strDetailJoinField);
                         lstMasterHeader.remove(strMasterJoinField);
 
+                        for (int intCount = 0; intCount < lstMasterHeader.size(); intCount++) {
+                            if (lstDetailHeader.contains(lstMasterHeader.get(intCount))) {
+                                lstDetailHeader.remove(lstMasterHeader.get(intCount));
+                            }
+                        }
+
                         lstMergeHeader = new ArrayList<>(Arrays.asList(strDetailJoinField));
                         lstMergeHeader.addAll(lstMasterHeader);
                         lstMergeHeader.addAll(lstDetailHeader);

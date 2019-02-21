@@ -355,8 +355,6 @@ public class ElasticConnection {
                     }
 
                     mapFields.put(strCurIndex, mapType);
-
-                    break;
                 }
             }
 
@@ -1139,9 +1137,12 @@ public class ElasticConnection {
 
                 for (Map.Entry<String, Map<String, List<ESFieldModel>>> curEntry : mapField.entrySet()) {
                     if (curEntry.getKey().contains(strIndexPattern)) {
-                        lstReturnField = curEntry.getValue().get(strType);
-                        break;
+                        lstReturnField.addAll(curEntry.getValue().get(strType));
                     }
+                }
+
+                if (lstReturnField != null && lstReturnField.size() > 0) {
+                    lstReturnField = lstReturnField.stream().distinct().collect(Collectors.toList());
                 }
             }
         } catch (Exception objEx) {
