@@ -368,11 +368,11 @@ public class ElasticService {
     public List<ESFileModel> exportESMasterDetailDataToCSV(String strMasterIndex, String strMasterType,
                                                            String strDetailIndex, String strDetailType,
                                                            String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
-                                                           List<String> lstPredefineHeader,
+                                                           List<String> lstPredefineHeader, HashMap<String, String> mapDateField,
                                                            ESFilterAllRequestModel objFilterAllRequest, String strFileName,
                                                            Boolean bIsMultipleFile, Integer intMaxFileLine) {
         return objESAction.exportESMasterDetailDataToCSV(strMasterIndex, strMasterType, strDetailIndex, strDetailType, strMasterJoinField, strDetailJoinField,
-                intPageSize, lstPredefineHeader, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
+                intPageSize, lstPredefineHeader, mapDateField, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
     }
 
     /**
@@ -396,11 +396,12 @@ public class ElasticService {
                                                         String strMasterJoinField, String strTransposeJoinField,
                                                         List<String> lstTransposeFieldName, String strFieldNameSeparator,
                                                         List<String> lstTransposeFieldValue, Integer intPageSize,
+                                                        HashMap<String, String> mapDateField,
                                                         ESFilterAllRequestModel objFilterAllRequest, String strFileName) {
         return objESAction.exportESTransposeDataToCSV(strMasterIndex, strMasterType, strTransposeIndex, strTransposeType,
                 strMasterJoinField, strTransposeJoinField,
                 lstTransposeFieldName, strFieldNameSeparator, lstTransposeFieldValue,
-                intPageSize, objFilterAllRequest, strFileName);
+                intPageSize, mapDateField, objFilterAllRequest, strFileName);
     }
 
     /**

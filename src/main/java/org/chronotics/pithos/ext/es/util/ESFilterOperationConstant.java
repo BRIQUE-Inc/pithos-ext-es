@@ -11,6 +11,8 @@ public class ESFilterOperationConstant {
     public static final int DOES_NOT_EXIST = 8;
     public static final int CORRELATION = 9;
     public static final int COVARIANCE = 10;
+    public static final int IS_FIELD_EXIST = 11;
+    public static final int IS_FIELD_NOT_EXIST = 12;
 
     public static final String FILTER_OUTLIER_MILD = "FILTER_OUTLIER_MILD";
     public static final String FILTER_OUTLIER_EXTREME = "FILTER_OUTLIER_EXTREME";

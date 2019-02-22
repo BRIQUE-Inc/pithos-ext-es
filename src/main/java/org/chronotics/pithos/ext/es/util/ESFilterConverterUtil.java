@@ -95,7 +95,9 @@ public class ESFilterConverterUtil {
                     case ESFilterOperationConstant.IS_NOT:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
                             if (!bIsSpecialCondition) {
-                                objQueryBuilder.mustNot(QueryBuilders.termQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(0)));
+                                BoolQueryBuilder objBoolSubQueryBuilder = new BoolQueryBuilder();
+                                objBoolSubQueryBuilder.mustNot(QueryBuilders.termQuery(strFieldOfIndex, objESFilterRequest.getFiltered_conditions().get(0)));
+                                objQueryBuilder.must(objBoolSubQueryBuilder);
                             } else {
                                 bIsAdded = false;
                             }
@@ -154,7 +156,10 @@ public class ESFilterConverterUtil {
                                 objRangeQueryBuilder = objRangeQueryBuilder.to(objESFilterRequest.getTo_range_condition(), true);
                             }
 
-                            objQueryBuilder.mustNot(objRangeQueryBuilder);
+                            BoolQueryBuilder objBoolSubQueryBuiler = new BoolQueryBuilder();
+                            objBoolSubQueryBuiler.mustNot(objRangeQueryBuilder);
+
+                            objQueryBuilder.must(objBoolSubQueryBuiler);
                         }
                         break;
                     case ESFilterOperationConstant.EXISTS:
@@ -164,8 +169,18 @@ public class ESFilterConverterUtil {
                         break;
                     case ESFilterOperationConstant.DOES_NOT_EXIST:
                         if (objESFilterRequest.getFiltered_conditions() != null && objESFilterRequest.getFiltered_conditions().size() > 0) {
-                            objQueryBuilder.mustNot(QueryBuilders.wildcardQuery(strFieldOfIndex, new StringBuilder().append("*").append(objESFilterRequest.getFiltered_conditions().get(0)).append("*").toString()));
+                            BoolQueryBuilder objBoolSubQueryBuiler = new BoolQueryBuilder();
+                            objBoolSubQueryBuiler.mustNot(QueryBuilders.wildcardQuery(strFieldOfIndex, new StringBuilder().append("*").append(objESFilterRequest.getFiltered_conditions().get(0)).append("*").toString()));
+                            objQueryBuilder.must(objBoolSubQueryBuiler);
                         }
+                        break;
+                    case ESFilterOperationConstant.IS_FIELD_EXIST:
+                        objQueryBuilder.must(QueryBuilders.existsQuery(strFieldOfIndex));
+                        break;
+                    case ESFilterOperationConstant.IS_FIELD_NOT_EXIST:
+                        BoolQueryBuilder objBoolSubQueryBuiler = new BoolQueryBuilder();
+                        objBoolSubQueryBuiler.mustNot(QueryBuilders.existsQuery(strFieldOfIndex));
+                        objQueryBuilder.must(objBoolSubQueryBuiler);
                         break;
                     default:
                         break;
@@ -188,11 +203,20 @@ public class ESFilterConverterUtil {
         String strFieldName = "";
 
         if (objESFilterRequest != null) {
-            List<String> lstCheckField = lstFields.stream().filter(objField -> objField.getFull_name().trim().toLowerCase().equals(objESFilterRequest.getFiltered_on_field().trim().toLowerCase()))
-                    .map(objFiltered -> objFiltered.getFull_name()).collect(Collectors.toList());
+            if (objESFilterRequest.getFiltered_operation().equals(ESFilterOperationConstant.IS_FIELD_EXIST)
+                || objESFilterRequest.getFiltered_operation().equals(ESFilterOperationConstant.IS_FIELD_NOT_EXIST)) {
+                strFieldName = objESFilterRequest.getFiltered_on_field();
+            } else {
+                try {
+                    List<String> lstCheckField = lstFields.stream().filter(objField -> objField.getFull_name().trim().toLowerCase().equals(objESFilterRequest.getFiltered_on_field().trim().toLowerCase()))
+                            .map(objFiltered -> objFiltered.getFull_name()).collect(Collectors.toList());
 
-            if (lstCheckField != null && lstCheckField.size() > 0) {
-                strFieldName = lstCheckField.get(0);
+                    if (lstCheckField != null && lstCheckField.size() > 0) {
+                        strFieldName = lstCheckField.get(0);
+                    }
+                } catch (Exception objEx) {
+                    strFieldName = objESFilterRequest.getFiltered_on_field();
+                }
             }
         }
 

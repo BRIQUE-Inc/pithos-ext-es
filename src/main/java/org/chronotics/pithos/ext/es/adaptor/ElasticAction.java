@@ -42,6 +42,7 @@ import scala.Int;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -2057,7 +2058,7 @@ public class ElasticAction {
     public List<ESFileModel> exportESMasterDetailDataToCSV(String strMasterIndex, String strMasterType,
                                                            String strDetailIndex, String strDetailType,
                                                            String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
-                                                           List<String> lstPredefineHeader,
+                                                           List<String> lstPredefineHeader, HashMap<String, String> mapDateField,
                                                            ESFilterAllRequestModel objFilterAllRequest, String strFileName,
                                                            Boolean bIsMultipleFile, Integer intMaxFileLine) {
         Boolean bIsExported = true;
@@ -2067,6 +2068,14 @@ public class ElasticAction {
         Calendar objBegin = Calendar.getInstance();
 
         try {
+            Map<String, SimpleDateFormat> mapDateFormat = new HashMap<>();
+
+            if (mapDateField != null && mapDateField.size() > 0) {
+                for (Map.Entry<String, String> curDateField: mapDateField.entrySet()) {
+                    SimpleDateFormat objCurDateFormat = new SimpleDateFormat(curDateField.getValue());
+                    mapDateFormat.put(curDateField.getKey(), objCurDateFormat);
+                }
+            }
             //- Get all data from master index with filter
             //- Generate Master CSV String Format map with key: join field
             //  - Master CSV Header
@@ -2129,8 +2138,24 @@ public class ElasticAction {
                             List<String> lstCurHit = new ArrayList<>();
 
                             for (int intCount = 0; intCount < lstMasterHeader.size(); intCount++) {
-                                if (mapCurHit.containsKey(lstMasterHeader.get(intCount))) {
-                                    lstCurHit.add(mapCurHit.get(lstMasterHeader.get(intCount)).toString());
+                                String strCurField = lstMasterHeader.get(intCount);
+
+                                if (mapCurHit.containsKey(strCurField)) {
+                                    if (mapDateFormat != null && mapDateFormat.containsKey(strCurField)) {
+                                        try {
+                                            String strCurDate = mapDateFormat.get(strCurField).format(new Date(Long.valueOf(mapCurHit.get(strCurField).toString())));
+
+                                            if (strCurDate != null && !strCurDate.isEmpty()) {
+                                                lstCurHit.add(strCurDate);
+                                            } else {
+                                                lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                            }
+                                        } catch (Exception objEx) {
+                                            lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                        }
+                                    } else {
+                                        lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                    }
                                 } else {
                                     lstCurHit.add("");
                                 }
@@ -2329,6 +2354,7 @@ public class ElasticAction {
                                                         String strMasterJoinField, String strTransposeJoinField,
                                                         List<String> lstTransposeFieldName, String strFieldNameSeparator,
                                                         List<String> lstTransposeFieldValue, Integer intPageSize,
+                                                        HashMap<String, String> mapDateField,
                                                         ESFilterAllRequestModel objFilterAllRequest, String strFileName) {
         Boolean bIsExported = true;
         List<ESFileModel> lstReturnFile = new ArrayList<>();
@@ -2337,6 +2363,15 @@ public class ElasticAction {
         Calendar objBegin = Calendar.getInstance();
 
         try {
+            Map<String, SimpleDateFormat> mapDateFormat = new HashMap<>();
+
+            if (mapDateField != null && mapDateField.size() > 0) {
+                for (Map.Entry<String, String> curDateField: mapDateField.entrySet()) {
+                    SimpleDateFormat objCurDateFormat = new SimpleDateFormat(curDateField.getValue());
+                    mapDateFormat.put(curDateField.getKey(), objCurDateFormat);
+                }
+            }
+
             //- Get all data from master index with filter
             //- Generate Master CSV String Format map with key: join field
             //  - Master CSV Header
@@ -2395,10 +2430,21 @@ public class ElasticAction {
                             List<String> lstCurHit = new ArrayList<>();
 
                             for (int intCount = 0; intCount < lstMasterHeader.size(); intCount++) {
-                                if (mapCurHit.containsKey(lstMasterHeader.get(intCount))) {
-                                    lstCurHit.add(mapCurHit.get(lstMasterHeader.get(intCount)).toString());
+                                String strCurField = lstMasterHeader.get(intCount);
+                                if (mapDateFormat != null && mapDateFormat.containsKey(strCurField)) {
+                                    try {
+                                        String strCurDate = mapDateFormat.get(strCurField).format(new Date(Long.valueOf(mapCurHit.get(strCurField).toString())));
+
+                                        if (strCurDate != null && !strCurDate.isEmpty()) {
+                                            lstCurHit.add(strCurDate);
+                                        } else {
+                                            lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                        }
+                                    } catch (Exception objEx) {
+                                        lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                    }
                                 } else {
-                                    lstCurHit.add("");
+                                    lstCurHit.add(mapCurHit.get(strCurField).toString());
                                 }
                             }
 
