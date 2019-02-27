@@ -36,7 +36,7 @@ public class ElasticService {
     }
 
     public static ElasticService getInstance(String strESClusterName, String strESCoorNodeIP,
-                                                Integer intESCoorNodePort) {
+                                             Integer intESCoorNodePort) {
         if (instance == null) {
             synchronized (ElasticService.class) {
                 if (instance == null) {
@@ -62,7 +62,7 @@ public class ElasticService {
     }
 
     public static ElasticService getInstance(String strESClusterName, String strListESCoorNodeConnectionString,
-                                                String strTransportUsername, String strTransportPassword) {
+                                             String strTransportUsername, String strTransportPassword) {
         if (instance == null) {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
@@ -373,6 +373,21 @@ public class ElasticService {
                                                            Boolean bIsMultipleFile, Integer intMaxFileLine) {
         return objESAction.exportESMasterDetailDataToCSV(strMasterIndex, strMasterType, strDetailIndex, strDetailType, strMasterJoinField, strDetailJoinField,
                 intPageSize, lstPredefineHeader, mapDateField, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
+    }
+
+    public List<ESFileModel> exportESMasterDetailDataToCSVWithMasterDetailFilter(String strMasterIndex, String strMasterType,
+                                                                                 String strDetailIndex, String strDetailType,
+                                                                                 String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
+                                                                                 List<String> lstPredefineHeader, HashMap<String, String> mapDateField,
+                                                                                 ESFilterAllRequestModel objFilterMasterRequest,
+                                                                                 ESFilterAllRequestModel objFilterDetailRequest,
+                                                                                 String strFileName,
+                                                                                 Boolean bIsMultipleFile, Integer intMaxFileLine) {
+        return  objESAction.exportESMasterDetailDataToCSVWithMasterDetailFilter(strMasterIndex, strMasterType, strDetailIndex, strDetailType,
+                strMasterJoinField, strDetailJoinField,
+                intPageSize, lstPredefineHeader, mapDateField,
+                objFilterMasterRequest, objFilterDetailRequest,
+                strFileName, bIsMultipleFile, intMaxFileLine);
     }
 
     /**

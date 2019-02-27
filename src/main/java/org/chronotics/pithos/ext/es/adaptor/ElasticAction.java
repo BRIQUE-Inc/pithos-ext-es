@@ -2349,6 +2349,332 @@ public class ElasticAction {
         return lstReturnFile;
     }
 
+    public List<ESFileModel> exportESMasterDetailDataToCSVWithMasterDetailFilter(String strMasterIndex, String strMasterType,
+                                                                                 String strDetailIndex, String strDetailType,
+                                                                                 String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
+                                                                                 List<String> lstPredefineHeader, HashMap<String, String> mapDateField,
+                                                                                 ESFilterAllRequestModel objFilterMasterRequest,
+                                                                                 ESFilterAllRequestModel objFilterDetailRequest,
+                                                                                 String strFileName,
+                                                                                 Boolean bIsMultipleFile, Integer intMaxFileLine) {
+        Boolean bIsExported = true;
+        List<ESFileModel> lstReturnFile = new ArrayList<>();
+        List<String> lstExportedFile = new ArrayList<>();
+
+        Calendar objBegin = Calendar.getInstance();
+
+        try {
+            Map<String, SimpleDateFormat> mapDateFormat = new HashMap<>();
+
+            if (mapDateField != null && mapDateField.size() > 0) {
+                for (Map.Entry<String, String> curDateField: mapDateField.entrySet()) {
+                    SimpleDateFormat objCurDateFormat = new SimpleDateFormat(curDateField.getValue());
+                    mapDateFormat.put(curDateField.getKey(), objCurDateFormat);
+                }
+            }
+            //- Get all data from master index with filter
+            //- Generate Master CSV String Format map with key: join field
+            //  - Master CSV Header
+            //  - Master CSV Data Map (join_field -> csv string)
+
+            //Refresh index before export
+            List<String> lstMasterHeader = new ArrayList<>();
+            Map<String, String> mapMasterData = new HashMap<>();
+
+            objESConnection.refreshIndex(strMasterIndex);
+
+            List<ESFieldModel> lstFieldModel = objESConnection.getFieldsMetaData(strMasterIndex, strMasterType, null, false);
+
+            List<ESFilterRequestModel> lstFilters = (objFilterMasterRequest != null
+                    && objFilterMasterRequest.getFilters() != null && objFilterMasterRequest.getFilters().size() > 0)
+                    ? objFilterMasterRequest.getFilters()
+                    : new ArrayList<ESFilterRequestModel>();
+
+            Boolean bIsReversedFilter = (objFilterMasterRequest != null && objFilterMasterRequest.getIs_reversed() != null) ? objFilterMasterRequest.getIs_reversed() : false;
+
+            SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+
+            if (lstFilters != null && lstFilters.size() > 0) {
+                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilters, lstFieldModel, new ArrayList<>(), bIsReversedFilter);
+                BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
+
+                List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
+
+                if (objQueryBuilder != null) {
+                    if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
+                        objQueryBuilder = objESFilter.generateAggQueryBuilder(strMasterIndex, strMasterType, objQueryBuilder,
+                                lstNotAddedFilterRequest, lstFieldModel);
+                    }
+
+                    objSearchSourceBuilder.query(objQueryBuilder);
+                }
+
+                lstMasterHeader = lstFieldModel.stream().map(curItem -> curItem.getFull_name()).collect(Collectors.toList());
+
+                if (lstPredefineHeader != null && lstPredefineHeader.size() > 0) {
+                    lstMasterHeader = lstMasterHeader.stream().filter(curHeader -> lstPredefineHeader.contains(curHeader)).collect(Collectors.toList());
+                }
+            }
+
+            SearchResponse objSearchResponse = objESClient.prepareSearch(strMasterIndex).setTypes(strMasterType)
+                    .setSource(objSearchSourceBuilder)
+                    .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
+                    .setSize(intPageSize).get();
+
+            do {
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    for (SearchHit objCurHit : objSearchResponse.getHits().getHits()) {
+                        Map<String, Object> mapCurHit = objCurHit.getSourceAsMap();
+
+                        if (mapCurHit.containsKey(strMasterJoinField)) {
+                            String strCurJoinID = mapCurHit.get(strMasterJoinField).toString();
+                            List<String> lstCurHit = new ArrayList<>();
+
+                            for (int intCount = 0; intCount < lstMasterHeader.size(); intCount++) {
+                                String strCurField = lstMasterHeader.get(intCount);
+
+                                if (mapCurHit.containsKey(strCurField)) {
+                                    if (mapDateFormat != null && mapDateFormat.containsKey(strCurField)) {
+                                        try {
+                                            String strCurDate = mapDateFormat.get(strCurField).format(new Date(Long.valueOf(mapCurHit.get(strCurField).toString())));
+
+                                            if (strCurDate != null && !strCurDate.isEmpty()) {
+                                                lstCurHit.add(strCurDate);
+                                            } else {
+                                                lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                            }
+                                        } catch (Exception objEx) {
+                                            lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                        }
+                                    } else {
+                                        lstCurHit.add(mapCurHit.get(strCurField).toString());
+                                    }
+                                } else {
+                                    lstCurHit.add("");
+                                }
+                            }
+
+                            mapMasterData.put(strCurJoinID, Strings.join(lstCurHit, ","));
+                        }
+                    }
+                }
+
+                objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                        .setScroll(new TimeValue(lScrollTTL)).get();
+            } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                    && objSearchResponse.getHits().getHits() != null
+                    && objSearchResponse.getHits().getHits().length > 0);
+
+            //- Create filter on data index with list of master join field from master data
+            BoolQueryBuilder objDetailQueryBuilder = new BoolQueryBuilder();
+
+            BoolQueryBuilder objSubDetailQueryBuilder = new BoolQueryBuilder();
+
+            for (Map.Entry<String, String> curHeader : mapMasterData.entrySet()) {
+                TermQueryBuilder objHeaderQueryBuilder = QueryBuilders.termQuery(strDetailJoinField, curHeader.getKey());
+                objSubDetailQueryBuilder.should(objHeaderQueryBuilder);
+            }
+
+            objDetailQueryBuilder.must(objSubDetailQueryBuilder);
+
+            //TODO Apply detail filter on detail index
+            lstFieldModel = objESConnection.getFieldsMetaData(strDetailIndex, strDetailType, null, false);
+
+            lstFilters = (objFilterDetailRequest != null
+                    && objFilterDetailRequest.getFilters() != null && objFilterDetailRequest.getFilters().size() > 0)
+                    ? objFilterDetailRequest.getFilters()
+                    : new ArrayList<ESFilterRequestModel>();
+
+            bIsReversedFilter = (objFilterDetailRequest != null && objFilterDetailRequest.getIs_reversed() != null) ? objFilterDetailRequest.getIs_reversed() : false;
+
+            if (lstFilters != null && lstFilters.size() > 0) {
+                List<Object> lstReturn = ESFilterConverterUtil.createBooleanQueryBuilders(lstFilters, lstFieldModel, new ArrayList<>(), bIsReversedFilter);
+                BoolQueryBuilder objQueryBuilder = (BoolQueryBuilder) lstReturn.get(0);
+
+                List<ESFilterRequestModel> lstNotAddedFilterRequest = (List<ESFilterRequestModel>) lstReturn.get(1);
+
+                if (objQueryBuilder != null) {
+                    if (lstNotAddedFilterRequest != null && lstNotAddedFilterRequest.size() > 0) {
+                        objQueryBuilder = objESFilter.generateAggQueryBuilder(strDetailIndex, strDetailType, objQueryBuilder,
+                                lstNotAddedFilterRequest, lstFieldModel);
+                    }
+
+                    objDetailQueryBuilder.must(objQueryBuilder);
+                }
+            }
+
+            //- Scroll on data index to query data and write to CSV files
+            objSearchSourceBuilder = new SearchSourceBuilder();
+            objSearchSourceBuilder.query(objDetailQueryBuilder);
+
+            String strNewFile = FileUtil.createFile(strFileName);
+
+            if (strNewFile != null && !strNewFile.isEmpty()) {
+                FileWriter objFileWriter = new FileWriter(strNewFile, true);
+
+                objESConnection.refreshIndex(strDetailIndex);
+                lstFieldModel = objESConnection.getFieldsMetaData(strDetailIndex, strDetailType, null, false);
+
+                List<String> lstDetailHeader = new ArrayList<>();
+
+                if (lstFieldModel != null && lstFieldModel.size() > 0) {
+                    lstDetailHeader = lstFieldModel.stream().map(curItem -> curItem.getFull_name()).collect(Collectors.toList());
+
+                    if (lstPredefineHeader != null && lstPredefineHeader.size() > 0) {
+                        lstDetailHeader = lstDetailHeader.stream().filter(curHeader -> lstPredefineHeader.contains(curHeader)).collect(Collectors.toList());
+                    }
+
+                    List<String> lstMergeHeader = new ArrayList<>();
+
+                    if (lstDetailHeader.contains(strDetailJoinField)) {
+                        lstDetailHeader.remove(strDetailJoinField);
+                        lstMasterHeader.remove(strMasterJoinField);
+
+                        for (int intCount = 0; intCount < lstMasterHeader.size(); intCount++) {
+                            if (lstDetailHeader.contains(lstMasterHeader.get(intCount))) {
+                                lstDetailHeader.remove(lstMasterHeader.get(intCount));
+                            }
+                        }
+
+                        lstMergeHeader = new ArrayList<>(Arrays.asList(strDetailJoinField));
+                        lstMergeHeader.addAll(lstMasterHeader);
+                        lstMergeHeader.addAll(lstDetailHeader);
+
+                        objSearchResponse = objESClient.prepareSearch(strDetailIndex).setTypes(strDetailType)
+                                .setSource(objSearchSourceBuilder)
+                                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
+                                .setSize(intPageSize).get();
+
+                        Integer intCurHitLine = 0;
+                        Integer intLastWriteLine = 0;
+                        Boolean bIsFirstWrite = true;
+                        Integer intCurNumFile = 0;
+
+                        Boolean bIsWriteCSV = false;
+                        Integer intCurSkipLine = 0;
+                        Integer intNumLoop = 0;
+
+                        do {
+                            if (objSearchResponse != null && objSearchResponse.getHits() != null
+                                    && objSearchResponse.getHits().getTotalHits() > 0
+                                    && objSearchResponse.getHits().getHits() != null
+                                    && objSearchResponse.getHits().getHits().length > 0) {
+                                intNumLoop += 1;
+                                Calendar dtCurHitTime = Calendar.getInstance();
+
+                                if (bIsFirstWrite) {
+                                    bIsFirstWrite = false;
+                                    writeCSVHeader(objFileWriter, lstMergeHeader);
+                                }
+
+                                if (bIsMultipleFile && intMaxFileLine > 0) {
+                                    intCurHitLine = objSearchResponse.getHits().getHits().length;
+                                    Integer intCurTotalLine = intLastWriteLine + intCurHitLine;
+
+                                    if (intCurTotalLine >= intMaxFileLine) {
+                                        Boolean bIsContinue = false;
+
+                                        do {
+                                            Integer intNeedToWrite = intMaxFileLine - intLastWriteLine;
+                                            List<SearchHit> lstHit = Arrays.asList(objSearchResponse.getHits().getHits()).stream().skip(intCurSkipLine).limit(intNeedToWrite).collect(Collectors.toList());
+
+                                            bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField, mapMasterData, lstDetailHeader);
+
+                                            objFileWriter.flush();
+                                            objFileWriter.close();
+
+                                            lstExportedFile.add(strNewFile);
+
+                                            if (bIsWriteCSV) {
+                                                strNewFile = strFileName.replace(".", "_" + intCurNumFile.toString() + ".");
+                                                strNewFile = FileUtil.createFile(strNewFile);
+                                                objFileWriter = new FileWriter(strNewFile, true);
+                                                writeCSVHeader(objFileWriter, objSearchResponse.getHits().getHits()[0]);
+
+                                                intCurNumFile += 1;
+                                                intLastWriteLine = 0;
+                                                intCurSkipLine += lstHit.size();
+
+                                                List<SearchHit> lstRemainHit = Arrays.asList(objSearchResponse.getHits().getHits()).stream().skip(intCurSkipLine).collect(Collectors.toList());
+
+                                                if (lstRemainHit.size() >= intMaxFileLine) {
+                                                    bIsContinue = false;
+                                                } else {
+                                                    bIsContinue = true;
+
+                                                    if (lstRemainHit != null && lstRemainHit.size() > 0) {
+                                                        intLastWriteLine = lstRemainHit.size();
+                                                        intCurSkipLine = lstRemainHit.size();
+
+                                                        bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField, mapMasterData, lstDetailHeader);
+                                                    } else {
+                                                        intLastWriteLine = 0;
+                                                        intCurSkipLine = 0;
+                                                    }
+                                                }
+                                            } else {
+                                                throw new Exception();
+                                            }
+                                        } while (!bIsContinue);
+                                    } else {
+                                        List<SearchHit> lstHit = Arrays.asList(objSearchResponse.getHits().getHits()).stream().skip(intCurSkipLine).collect(Collectors.toList());
+                                        bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, lstHit.toArray(new SearchHit[lstHit.size()]), strDetailJoinField, mapMasterData, lstDetailHeader);
+                                    }
+                                } else {
+                                    bIsWriteCSV = writeESDetailDataToCSVFile(objFileWriter, objSearchResponse.getHits().getHits(), strDetailJoinField, mapMasterData, lstDetailHeader);
+                                }
+
+                                if (!bIsWriteCSV) {
+                                    bIsExported = false;
+                                    break;
+                                }
+
+                                objLogger.info("Loop: " + intNumLoop + " Hit: " + objSearchResponse.getHits().getHits().length + " - Time: " + (Calendar.getInstance().getTimeInMillis() - dtCurHitTime.getTimeInMillis()) / 1000.0 + "secs");
+                            }
+
+                            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                    .setScroll(new TimeValue(lScrollTTL)).get();
+                        } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                                && objSearchResponse.getHits().getHits() != null
+                                && objSearchResponse.getHits().getHits().length > 0);
+
+                        if (objFileWriter != null) {
+                            objFileWriter.flush();
+                            objFileWriter.close();
+
+                            lstExportedFile.add(strNewFile);
+                        }
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.warn("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+        }
+
+        Long lElapsedTime = Calendar.getInstance().getTimeInMillis() - objBegin.getTimeInMillis();
+
+        if (lstExportedFile != null && lstExportedFile.size() > 0) {
+            for (int intCount = 0; intCount < lstExportedFile.size(); intCount++) {
+                File objFile = new File(lstExportedFile.get(intCount));
+
+                if (objFile.exists()) {
+                    ESFileModel objCurFileModel = new ESFileModel();
+                    objCurFileModel.setFile_name(objFile.getName());
+                    objCurFileModel.setFile_path(objFile.getAbsolutePath());
+                    objCurFileModel.setFile_size(objFile.length());
+                    objCurFileModel.setProcessed_time(lElapsedTime);
+
+                    lstReturnFile.add(objCurFileModel);
+                }
+            }
+        }
+
+        return lstReturnFile;
+    }
+
     public List<ESFileModel> exportESTransposeDataToCSV(String strMasterIndex, String strMasterType,
                                                         String strTransposeIndex, String strTransposeType,
                                                         String strMasterJoinField, String strTransposeJoinField,
