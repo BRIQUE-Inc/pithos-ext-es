@@ -6,7 +6,7 @@
 
     <groupId>org.chronotics</groupId>
     <artifactId>pithos-ext-es</artifactId>
-    <version>1.4-SNAPSHOT</version>
+    <version>1.5-SNAPSHOT</version>
 
     <repositories>
         <repository>
@@ -73,7 +73,7 @@
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <elasticsearch.version>6.5.3</elasticsearch.version>
+        <elasticsearch.version>6.5.4</elasticsearch.version>
         <jackson.version>2.9.6</jackson.version>
         <chron.version>1.4-SNAPSHOT</chron.version>
     </properties>
