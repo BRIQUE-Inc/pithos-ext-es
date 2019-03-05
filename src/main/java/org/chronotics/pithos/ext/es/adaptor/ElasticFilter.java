@@ -8,9 +8,9 @@ import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.ESConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterOperationConstant;
-import org.elasticsearch.action.search.SearchRequestBuilder;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.search.*;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.*;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public class ElasticFilter {
     protected Logger objLogger = LoggerFactory.getLogger(ElasticFilter.class);
     ElasticConnection objESConnection;
-    TransportClient objESClient;
+    RestHighLevelClient objESClient;
     ObjectMapper objMapper = new ObjectMapper();
 
     Long lScrollTTL = 600000L;
@@ -475,9 +475,6 @@ public class ElasticFilter {
         SearchResponse objSearchResponse = new SearchResponse();
 
         try {
-            SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(arrIndex).setTypes(arrType)
-                    .setSearchType(SearchType.DFS_QUERY_THEN_FETCH);
-
             SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
             objSearchSourceBuilder.size(intSize).from(intFrom);
 
@@ -518,8 +515,9 @@ public class ElasticFilter {
                 objSearchSourceBuilder.fetchSource(arrSource, null);
             }
 
-            objRequestBuilder.setSource(objSearchSourceBuilder);
-            objSearchResponse = objRequestBuilder.get();
+            objSearchResponse = objESClient.search(new SearchRequest().indices(arrIndex).types(arrType)
+                    .source(objSearchSourceBuilder)
+                    .searchType(SearchType.DFS_QUERY_THEN_FETCH), RequestOptions.DEFAULT);
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
@@ -534,13 +532,8 @@ public class ElasticFilter {
             if (objESClient != null) {
                 Long lTotalHit = getTotalHit(strIndex, strType);
 
-                //Get Total Hit First
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
-
                 for (int intCount = 0; intCount < lstField.size(); intCount++) {
                     String strField = lstField.get(intCount);
-
-                    objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                     SearchSourceBuilder objSearchSoureBuilder = new SearchSourceBuilder();
                     objSearchSoureBuilder.size(0);
 
@@ -548,9 +541,9 @@ public class ElasticFilter {
                     objBoolQuery.mustNot(QueryBuilders.existsQuery(strField));
 
                     objSearchSoureBuilder.query(objBoolQuery);
-                    objSearchRequestBuilder.setSource(objSearchSoureBuilder);
 
-                    SearchResponse objNullResponse = objSearchRequestBuilder.get();
+                    SearchResponse objNullResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                            .source(objSearchSoureBuilder), RequestOptions.DEFAULT);
 
                     if (objNullResponse != null && objNullResponse.getHits() != null && objNullResponse.getHits().getTotalHits() > 0) {
                         Long lCurHit = objNullResponse.getHits().getTotalHits();
@@ -594,25 +587,25 @@ public class ElasticFilter {
             // Calculate interval of each fields
             // Get Histogram
             if (!bIsSimpleStats) {
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 Map<String, ArrayList<Double>> mapFieldMinMax = new HashMap<>();
                 Map<String, Double> mapFieldInterval = new HashMap<>();
 
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
-                objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                 for (int intCount = 0; intCount < lstNumberField.size(); intCount++) {
                     String strMinName = lstNumberField.get(intCount) + "_min";
                     String strMaxName = lstNumberField.get(intCount) + "_max";
 
-                    objSearchRequestBuilder
-                            .addAggregation(AggregationBuilders.min(strMinName).field(lstNumberField.get(intCount).trim()));
-                    objSearchRequestBuilder
-                            .addAggregation(AggregationBuilders.max(strMaxName).field(lstNumberField.get(intCount).trim()));
+                    objSearchSourceBuilder
+                            .aggregation(AggregationBuilders.min(strMinName).field(lstNumberField.get(intCount).trim()));
+                    objSearchSourceBuilder
+                            .aggregation(AggregationBuilders.max(strMaxName).field(lstNumberField.get(intCount).trim()));
                 }
 
-                SearchResponse objMinMaxSearchResponse = objSearchRequestBuilder.get();
+                SearchResponse objMinMaxSearchResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                    .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
+
                 Double dbTotalHit = 0.0;
 
                 if (objMinMaxSearchResponse != null && objMinMaxSearchResponse.getAggregations() != null
@@ -656,19 +649,18 @@ public class ElasticFilter {
                     }
 
                     if (mapFieldInterval != null && mapFieldInterval.size() > 0) {
-                        objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                         objSearchSourceBuilder = new SearchSourceBuilder();
                         objSearchSourceBuilder.size(0);
-                        objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                         for (Map.Entry<String, Double> curFieldInterval : mapFieldInterval.entrySet()) {
-                            objSearchRequestBuilder
-                                    .addAggregation(AggregationBuilders.histogram(curFieldInterval.getKey() + "_hist")
+                            objSearchSourceBuilder
+                                    .aggregation(AggregationBuilders.histogram(curFieldInterval.getKey() + "_hist")
                                             .interval(curFieldInterval.getValue()).field(curFieldInterval.getKey())
                                             .minDocCount(1L));
                         }
 
-                        SearchResponse objHistogramResponse = objSearchRequestBuilder.get();
+                        SearchResponse objHistogramResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                            .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                         if (objHistogramResponse != null && objHistogramResponse.getAggregations() != null
                                 && objHistogramResponse.getAggregations().asList() != null) {
@@ -707,16 +699,15 @@ public class ElasticFilter {
 
                 if (lstTextField != null && lstTextField.size() > 0) {
                     // If fields are text, get top hits
-                    objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                    //objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                     objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.size(0);
-                    objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                     if (dbTotalHit == null || dbTotalHit <= 0.0) {
-                        objSearchRequestBuilder.addAggregation(
+                        objSearchSourceBuilder.aggregation(
                                 AggregationBuilders.count(lstTextField.get(0) + "_count").field(lstTextField.get(0)));
 
-                        SearchResponse objCountResponse = objSearchRequestBuilder.get();
+                        SearchResponse objCountResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType).source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                         if (objCountResponse != null && objCountResponse.getAggregations() != null
                                 && objCountResponse.getAggregations().asList() != null
@@ -730,12 +721,12 @@ public class ElasticFilter {
                     }
 
                     for (int intCount = 0; intCount < lstTextField.size(); intCount++) {
-                        objSearchRequestBuilder.addAggregation(AggregationBuilders
+                        objSearchSourceBuilder.aggregation(AggregationBuilders
                                 .terms(lstTextField.get(intCount) + "_tophits").field(lstTextField.get(intCount))
                                 .size(new Double(Math.sqrt(dbTotalHit)).intValue()));
                     }
 
-                    SearchResponse objTermResponse = objSearchRequestBuilder.get();
+                    SearchResponse objTermResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType).source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                     if (objTermResponse != null && objTermResponse.getAggregations() != null
                             && objTermResponse.getAggregations().asList() != null) {
@@ -807,14 +798,15 @@ public class ElasticFilter {
         try {
             if (objESClient != null) {
                 //Check nullity
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
-                objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                 //Get Total Hit First
                 MatchAllQueryBuilder objMatchAllQuery = new MatchAllQueryBuilder();
-                SearchResponse objSearchResponse = objSearchRequestBuilder.setQuery(objMatchAllQuery).get();
+                objSearchSourceBuilder.query(objMatchAllQuery);
+
+                SearchResponse objSearchResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                        .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
                     lTotalHit = objSearchResponse.getHits().getTotalHits();
@@ -835,7 +827,6 @@ public class ElasticFilter {
                 Long lTotalHit = getTotalHit(strIndex, strType);
 
                 //Check nullity
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
 
                 if (lTotalHit > 0) {
                     for (int intCount = 0; intCount < lstStringField.size(); intCount++) {
@@ -851,9 +842,13 @@ public class ElasticFilter {
                                     .should(objN_AQueryBuilder).should(objn_aQueryBuilder)
                                     .should(objNANQueryBuilder).should(objnanQueryBuilder);
 
-                            objSearchRequestBuilder.setQuery(null);
 
-                            SearchResponse objSearchResponse = objSearchRequestBuilder.setQuery(objBooleanQuery).get();
+                            SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                            objSearchSourceBuilder.query(objBooleanQuery);
+                            objSearchSourceBuilder.size(0);
+
+                            SearchResponse objSearchResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                                    .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                             if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
                                 Long lCurHit = objSearchResponse.getHits().getTotalHits();
@@ -883,15 +878,14 @@ public class ElasticFilter {
                                                 Integer intPageSize) {
         try {
             if (objESClient != null) {
-                SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType)
-                        .setSearchType(SearchType.DFS_QUERY_THEN_FETCH).setSize(intPageSize).setFrom(intFromDocIdx);
-
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.query(QueryBuilders.matchAllQuery()).size(intPageSize).from(intFromDocIdx)
+                        .size(intPageSize)
+                        .from(intFromDocIdx)
                         .sort("_doc");
 
-                objRequestBuilder.setSource(objSearchSourceBuilder);
-                SearchResponse objSearchResponse = objRequestBuilder.get();
+                SearchResponse objSearchResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                    .source(objSearchSourceBuilder).searchType(SearchType.DFS_QUERY_THEN_FETCH), RequestOptions.DEFAULT);
 
                 return objSearchResponse;
             } else {
@@ -904,26 +898,26 @@ public class ElasticFilter {
         }
     }
 
-    protected SearchResponse searchESWithScan(String strIndex, String strType, Integer intPageSize) {
-        SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
-                .setSize(intPageSize).get();
-
-        do {
-            if (objSearchResponse != null && objSearchResponse.getHits() != null
-                    && objSearchResponse.getHits().getTotalHits() > 0
-                    && objSearchResponse.getHits().getHits() != null
-                    && objSearchResponse.getHits().getHits().length > 0) {
-            }
-
-            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                    .setScroll(new TimeValue(lScrollTTL)).get();
-        } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
-                && objSearchResponse.getHits().getHits() != null
-                && objSearchResponse.getHits().getHits().length > 0);
-
-        return objSearchResponse;
-    }
+//    protected SearchResponse searchESWithScan(String strIndex, String strType, Integer intPageSize) {
+//        SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+//                .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
+//                .setSize(intPageSize).get();
+//
+//        do {
+//            if (objSearchResponse != null && objSearchResponse.getHits() != null
+//                    && objSearchResponse.getHits().getTotalHits() > 0
+//                    && objSearchResponse.getHits().getHits() != null
+//                    && objSearchResponse.getHits().getHits().length > 0) {
+//            }
+//
+//            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+//                    .setScroll(new TimeValue(lScrollTTL)).get();
+//        } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+//                && objSearchResponse.getHits().getHits() != null
+//                && objSearchResponse.getHits().getHits().length > 0);
+//
+//        return objSearchResponse;
+//    }
 
     // Way to calculate Outlier:
     // https://www.itl.nist.gov/div898/handbook/prc/section1/prc16.htm
@@ -947,10 +941,8 @@ public class ElasticFilter {
 
                 Map<String, List<Double>> mapNullStats = statsNullityOfField(strIndex, strType, lstCombineField);
 
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
-                objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                 for (int intCount = 0; intCount < lstNumberField.size(); intCount++) {
                     String strStatName = lstNumberField.get(intCount) + "_summary";
@@ -1025,10 +1017,11 @@ public class ElasticFilter {
                                 .subAggregation(objUpperOuterFenceAggBuilder);
                     }
 
-                    objSearchRequestBuilder.addAggregation(objCurAggBuilder);
+                    objSearchSourceBuilder.aggregation(objCurAggBuilder);
                 }
 
-                SearchResponse objStatsResponse = objSearchRequestBuilder.get();
+                SearchResponse objStatsResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                        .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                 if (objStatsResponse != null && objStatsResponse.getAggregations() != null
                         && objStatsResponse.getAggregations().asList() != null) {
@@ -1174,20 +1167,19 @@ public class ElasticFilter {
             try {
                 objESConnection.refreshIndex(strIndex);
 
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
-                objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                 if (objCustomQueryBuilder != null) {
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
                 }
 
                 for (int intCount = 0; intCount < lstCustomAggregationBuilder.size(); intCount++) {
-                    objSearchRequestBuilder.addAggregation(lstCustomAggregationBuilder.get(intCount));
+                    objSearchSourceBuilder.aggregation(lstCustomAggregationBuilder.get(intCount));
                 }
 
-                return objSearchRequestBuilder.get(new TimeValue(10, TimeUnit.MINUTES));
+                return objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                    .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
             } catch (Exception objEx) {
                 objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
             }
@@ -1210,10 +1202,14 @@ public class ElasticFilter {
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
 
-                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                            .setSource(objSearchSourceBuilder)
-                            .addSort(objFieldSortBuilder).setScroll(new TimeValue(lScrollTTL))
-                            .setSize(20000).get();
+                    if (objFieldSortBuilder != null) {
+                        objSearchSourceBuilder.sort(objFieldSortBuilder);
+                    }
+
+                    objSearchSourceBuilder.size(20000);
+
+                    SearchResponse objSearchResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                            .source(objSearchSourceBuilder).scroll(new TimeValue(lScrollTTL)), RequestOptions.DEFAULT);
 
                     do {
                         if (objSearchResponse != null && objSearchResponse.getHits() != null
@@ -1224,8 +1220,8 @@ public class ElasticFilter {
 
                             lstHit.addAll(lstCurHit);
 
-                            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                                    .setScroll(new TimeValue(lScrollTTL)).get();
+                            objSearchResponse = objESClient.scroll(new SearchScrollRequest().scrollId(objSearchResponse.getScrollId())
+                                    .scroll(new TimeValue(lScrollTTL)), RequestOptions.DEFAULT);
                         } else {
                             break;
                         }
@@ -1236,10 +1232,14 @@ public class ElasticFilter {
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
 
-                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                            .setSource(objSearchSourceBuilder)
-                            .addSort(objFieldSortBuilder)
-                            .setSize(intSize).get();
+                    if (objFieldSortBuilder != null) {
+                        objSearchSourceBuilder.sort(objFieldSortBuilder);
+                    }
+
+                    objSearchSourceBuilder.size(intSize);
+
+                    SearchResponse objSearchResponse = objESClient.search(new SearchRequest().indices(strIndex).types(strType)
+                            .source(objSearchSourceBuilder), RequestOptions.DEFAULT);
 
                     if (objSearchResponse != null && objSearchResponse.getHits() != null
                             && objSearchResponse.getHits().getTotalHits() > 0

@@ -1,6 +1,12 @@
 package org.chronotics.pithos.ext.es.adaptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.chronotics.pandora.java.converter.ConverterUtil;
 import org.chronotics.pandora.java.exception.ExceptionUtil;
 import org.chronotics.pandora.java.log.Logger;
@@ -8,16 +14,22 @@ import org.chronotics.pandora.java.log.LoggerFactory;
 import org.chronotics.pandora.java.serialization.JacksonFilter;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
+import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.AdminClient;
-import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.*;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -48,9 +60,10 @@ public class ElasticConnection {
     String strESCoorNodeIP = "";
     String strTransportUsername = "";
     String strTransportPassword = "";
+    String strHttpScheme = "";
     Integer intESCoorNodePort = 0;
     Integer intNumBulkOperation = 20000;
-    TransportClient objESClient;
+    RestHighLevelClient objESClient;
     List<String> lstConvertedDataType = new ArrayList<>();
 
     Integer intNumReplica = 0;
@@ -64,9 +77,10 @@ public class ElasticConnection {
 
     String strListESCoorNodeConnectionString = "";
 
-    public ElasticConnection(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
+    public ElasticConnection(String strESClusterName, String strESCoorNodeIP, Integer intESCoorNodePort, String strHttpScheme, String strTransportUsername, String strTransportPassword) {
         this.strESClusterName = strESClusterName;
         this.strESCoorNodeIP = strESCoorNodeIP;
+        this.strHttpScheme = strHttpScheme;
         this.intESCoorNodePort = intESCoorNodePort;
         this.strTransportUsername = strTransportUsername;
         this.strTransportPassword = strTransportPassword;
@@ -85,9 +99,10 @@ public class ElasticConnection {
         objESClient = createESClient();
     }
 
-    public ElasticConnection(String strESClusterName, String strListESCoorNodeConnectionString, String strTransportUsername, String strTransportPassword) {
+    public ElasticConnection(String strESClusterName, String strListESCoorNodeConnectionString, String strHttpScheme, String strTransportUsername, String strTransportPassword) {
         this.strESClusterName = strESClusterName;
         this.strListESCoorNodeConnectionString = strListESCoorNodeConnectionString;
+        this.strHttpScheme = strHttpScheme;
         this.strTransportUsername = strTransportUsername;
         this.strTransportPassword = strTransportPassword;
 
@@ -105,12 +120,12 @@ public class ElasticConnection {
         objESClient = createESClientWithListNode();
     }
 
-    public static ElasticConnection getInstance(String strESClusterName, String strESCoorNodeIP,
+    public static ElasticConnection getInstance(String strESClusterName, String strESCoorNodeIP, String strHttpScheme,
                                                 Integer intESCoorNodePort) {
         if (instance == null) {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
-                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, "", "");
+                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strHttpScheme, "", "");
                 }
             }
         }
@@ -118,12 +133,12 @@ public class ElasticConnection {
         return instance;
     }
 
-    public static ElasticConnection getInstance(String strESClusterName, String strESCoorNodeIP,
+    public static ElasticConnection getInstance(String strESClusterName, String strESCoorNodeIP, String strHttpScheme,
                                                 Integer intESCoorNodePort, String strTransportUsername, String strTransportPassword) {
         if (instance == null) {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
-                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strTransportUsername, strTransportPassword);
+                    instance = new ElasticConnection(strESClusterName, strESCoorNodeIP, intESCoorNodePort, strHttpScheme, strTransportUsername, strTransportPassword);
                 }
             }
         }
@@ -131,12 +146,12 @@ public class ElasticConnection {
         return instance;
     }
 
-    public static ElasticConnection getInstance(String strESClusterName, String strListESCoorNodeConnectionString,
+    public static ElasticConnection getInstance(String strESClusterName, String strListESCoorNodeConnectionString, String strHttpScheme,
                                                 String strTransportUsername, String strTransportPassword) {
         if (instance == null) {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
-                    instance = new ElasticConnection(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword);
+                    instance = new ElasticConnection(strESClusterName, strListESCoorNodeConnectionString, strHttpScheme, strTransportUsername, strTransportPassword);
                 }
             }
         }
@@ -161,22 +176,37 @@ public class ElasticConnection {
     }
 
     @SuppressWarnings("resource")
-    protected TransportClient createESClient() {
-        TransportClient objESClient = null;
+    protected RestHighLevelClient createESClient() {
+        RestHighLevelClient objESClient = null;
 
         try {
             if (this.strTransportUsername == null || this.strTransportUsername.isEmpty()) {
-                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                        .put("client.transport.sniff", false).build();
-                objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
-                        new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+//                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+//                        .put("client.transport.sniff", false).build();
+//                objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
+//                        new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+                objESClient = new RestHighLevelClient(RestClient.builder(new HttpHost(strESCoorNodeIP, intESCoorNodePort, strHttpScheme)));
             } else {
-                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                        .put("client.transport.sniff", false)
-                        .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
-                        .build();
-                objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
-                        .addTransportAddress(new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+//                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+//                        .put("client.transport.sniff", false)
+//                        .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
+//                        .build();
+//                objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
+//                        .addTransportAddress(new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
+
+                final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+                credentialsProvider.setCredentials(AuthScope.ANY,
+                        new UsernamePasswordCredentials(strTransportUsername, strTransportPassword));
+
+                RestClientBuilder objHttpBuilder = RestClient.builder(new HttpHost(strESCoorNodeIP, intESCoorNodePort, strHttpScheme))
+                        .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+                            @Override
+                            public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpAsyncClientBuilder) {
+                                return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+                            }
+                        });
+
+                objESClient = new RestHighLevelClient(objHttpBuilder);
             }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
@@ -185,14 +215,14 @@ public class ElasticConnection {
         return objESClient;
     }
 
-    protected TransportClient createESClientWithListNode() {
-        TransportClient objESClient = null;
+    protected RestHighLevelClient createESClientWithListNode() {
+        RestHighLevelClient objESClient = null;
 
         String[] arrCoorNodeConnectionString = strListESCoorNodeConnectionString.split("\\;");
 
         if (arrCoorNodeConnectionString != null && arrCoorNodeConnectionString.length > 0) {
             try {
-                List<TransportAddress> arrConnectionNode = new ArrayList<>(); //TransportAddress[arrCoorNodeConnectionString.length];
+                List<HttpHost> arrHttpHost = new ArrayList<>();
 
                 for (int intCount = 0; intCount < arrCoorNodeConnectionString.length; intCount++) {
                     String[] arrSplit = arrCoorNodeConnectionString[intCount].split("\\:");
@@ -200,7 +230,8 @@ public class ElasticConnection {
                     if (arrSplit.length == 2) {
                         try {
                             TransportAddress objCurTransportAddr = new TransportAddress(InetAddress.getByName(arrSplit[0].trim()), Integer.valueOf(arrSplit[1].trim()));
-                            arrConnectionNode.add(objCurTransportAddr);
+                            HttpHost objHttpHost = new HttpHost(arrSplit[0].trim(), Integer.valueOf(arrSplit[1].trim()), strHttpScheme);
+                            arrHttpHost.add(objHttpHost);
                         } catch (Exception objEx) {
                             objLogger.error("WARN: " + ExceptionUtil.getStrackTrace(objEx));
                         }
@@ -208,17 +239,32 @@ public class ElasticConnection {
                 }
 
                 if (this.strTransportUsername == null || this.strTransportUsername.isEmpty()) {
-                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                            .put("client.transport.sniff", false).build();
-                    objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class)
-                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
+//                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+//                            .put("client.transport.sniff", false).build();
+//                    objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class)
+//                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
+                    objESClient = new RestHighLevelClient(RestClient.builder(arrHttpHost.toArray(new HttpHost[arrHttpHost.size()])));
                 } else {
-                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                            .put("client.transport.sniff", false)
-                            .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
-                            .build();
-                    objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
-                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
+//                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
+//                            .put("client.transport.sniff", false)
+//                            .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
+//                            .build();
+//                    objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
+//                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
+
+                    final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+                    credentialsProvider.setCredentials(AuthScope.ANY,
+                            new UsernamePasswordCredentials(strTransportUsername, strTransportPassword));
+
+                    RestClientBuilder objHttpBuilder = RestClient.builder(arrHttpHost.toArray(new HttpHost[arrHttpHost.size()]))
+                            .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
+                                @Override
+                                public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpAsyncClientBuilder) {
+                                    return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+                                }
+                            });
+
+                    objESClient = new RestHighLevelClient(objHttpBuilder);
                 }
             } catch (Exception objEx) {
                 objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
@@ -238,35 +284,6 @@ public class ElasticConnection {
         }
     }
 
-    protected List<Object> createESAdminClient() {
-        List<Object> lstClient = new ArrayList<>();
-
-        AdminClient objClient = null;
-        try {
-            objClient = objESClient.admin();
-
-            lstClient.add(objESClient);
-            lstClient.add(objClient);
-        } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-        }
-
-        return lstClient;
-    }
-
-    protected IndicesAdminClient createESIndiceAdminClient() {
-        IndicesAdminClient objClient = null;
-
-        try {
-            objClient = objESClient.admin().indices();
-        } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-        }
-
-        return objClient;
-    }
-
-
     @SuppressWarnings("unchecked")
     protected Map<String, Map<String, List<ESFieldModel>>> getFieldsOfIndices(List<String> lstIndex, List<String> lstType,
                                                                               List<String> lstField, Boolean bIsCheckNull) {
@@ -279,10 +296,12 @@ public class ElasticConnection {
                 arrField = lstField.toArray(new String[lstField.size()]);
             }
 
-            IndicesAdminClient objAdminClient = createESIndiceAdminClient();
+            IndicesClient objAdminClient = objESClient.indices();
             GetFieldMappingsResponse objFieldMappingResponse = objAdminClient
-                    .prepareGetFieldMappings(lstIndex.toArray(new String[lstIndex.size()]))
-                    .setTypes(lstType.toArray(new String[lstType.size()])).setFields(arrField).get();
+                    .getFieldMapping(
+                            new GetFieldMappingsRequest().indices(lstIndex.toArray(new String[lstIndex.size()]))
+                                    .types(lstType.toArray(new String[lstType.size()]))
+                                    .fields(arrField), RequestOptions.DEFAULT);
 
             if (objFieldMappingResponse != null && objFieldMappingResponse.mappings() != null
                     && objFieldMappingResponse.mappings().size() > 0) {
@@ -365,7 +384,7 @@ public class ElasticConnection {
         return mapFields;
     }
 
-    protected void closeESClient(TransportClient objESClient) {
+    protected void closeESClient(RestHighLevelClient objESClient) {
         // try {
         // if (objESClient != null) {
         // objESClient.close();
@@ -528,13 +547,12 @@ public class ElasticConnection {
             }
 
             if (objESClient != null && lstStatFields != null && lstStatFields.size() > 0) {
-                SearchRequestBuilder objSearchRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                SearchRequest objSearchRequest = new SearchRequest().indices(strIndex).types(strType);
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.size(0);
-                objSearchRequestBuilder.setSource(objSearchSourceBuilder);
 
                 MatrixStatsAggregationBuilder objMatrixStatBuilder = MatrixStatsAggregationBuilders.matrixStats(strStatName).fields(lstStatFields);
-                objSearchRequestBuilder.addAggregation(objMatrixStatBuilder);
+                objSearchSourceBuilder.aggregation(objMatrixStatBuilder);
 
                 BoolQueryBuilder objBooleanQueryBuilder = new BoolQueryBuilder();
 
@@ -543,9 +561,11 @@ public class ElasticConnection {
                     objBooleanQueryBuilder.must(objExistQueryBuilder);
                 }
 
-                objSearchRequestBuilder.setQuery(objBooleanQueryBuilder);
+                objSearchSourceBuilder.query(objBooleanQueryBuilder);
 
-                SearchResponse objSearchResponse = objSearchRequestBuilder.get();
+                objSearchRequest.source(objSearchSourceBuilder);
+
+                SearchResponse objSearchResponse = objESClient.search(objSearchRequest, RequestOptions.DEFAULT);
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                         && objSearchResponse.getAggregations() != null) {
@@ -642,25 +662,30 @@ public class ElasticConnection {
                 Long lTotalHit = 0l;
 
                 //Get Total Hit First
-                SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
+                SearchRequest objSearchRequest = new SearchRequest().indices(strIndex).types(strType);
 
                 MatchAllQueryBuilder objMatchAllQuery = new MatchAllQueryBuilder();
-                SearchResponse objSearchResponse = objRequestBuilder.setQuery(objMatchAllQuery).get();
+                SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
+                objSourceBuilder.query(objMatchAllQuery);
+                objSearchRequest.source(objSourceBuilder);
+
+                SearchResponse objSearchResponse = objESClient.search(objSearchRequest, RequestOptions.DEFAULT);
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() >= 0) {
                     lTotalHit = objSearchResponse.getHits().getTotalHits();
                 }
 
-                objRequestBuilder = objESClient.prepareSearch(strIndex).setTypes(strType);
-                SearchSourceBuilder objSourceBuilder = new SearchSourceBuilder();
+                objSearchRequest = new SearchRequest().indices(strIndex).types(strType);
+                objSourceBuilder = new SearchSourceBuilder();
                 objSourceBuilder.size(0);
-                objRequestBuilder.setSource(objSourceBuilder);
 
                 for (String strField : lstField) {
-                    objRequestBuilder.addAggregation(AggregationBuilders.filter(strField + "_null", QueryBuilders.existsQuery(strField)));
+                    objSourceBuilder.aggregation(AggregationBuilders.filter(strField + "_null", QueryBuilders.existsQuery(strField)));
                 }
 
-                SearchResponse objNullResponse = objRequestBuilder.get();
+                objSearchRequest.source(objSourceBuilder);
+
+                SearchResponse objNullResponse = objESClient.search(objSearchRequest, RequestOptions.DEFAULT);
 
                 if (objNullResponse != null && objNullResponse.getHits() != null
                         && objNullResponse.getHits().getTotalHits() > 0
@@ -678,11 +703,6 @@ public class ElasticConnection {
                                     && lTotalDoc.doubleValue() / lTotalHit.doubleValue() > 0.1) {
                                 lstNotNullField.add(strCurFieldName);
                             }
-
-//                            if (lTotalHit.doubleValue() / lTotalDoc.doubleValue() < 1.1
-//                                    && lTotalHit.doubleValue() / lTotalDoc.doubleValue() > 0.9) {
-//                                lstNotNullField.add(strCurFieldName);
-//                            }
                         }
                     }
                 }
@@ -764,7 +784,7 @@ public class ElasticConnection {
 
         try {
             if (objESClient != null) {
-                AcknowledgedResponse objDeleteResponse = objESClient.admin().indices().prepareDelete(strIndex).get();
+                AcknowledgedResponse objDeleteResponse = objESClient.indices().delete(new DeleteIndexRequest().indices(strIndex), RequestOptions.DEFAULT);
 
                 if (objDeleteResponse != null && objDeleteResponse.isAcknowledged()) {
                     bIsDeleted = true;
@@ -788,9 +808,9 @@ public class ElasticConnection {
                     objBuilder.put(curSetting.getKey(), curSetting.getValue());
                 }
 
-                AcknowledgedResponse objUpdateSettingResponse = objESClient.admin().indices().prepareUpdateSettings(strIndex)
-                        .setSettings(objBuilder)
-                        .get();
+                AcknowledgedResponse objUpdateSettingResponse = objESClient.indices()
+                        .putSettings(new UpdateSettingsRequest().indices(strIndex)
+                                .settings(objBuilder));
 
                 if (objUpdateSettingResponse != null && objUpdateSettingResponse.isAcknowledged()) {
                     bIsUpdated = true;
@@ -1002,25 +1022,24 @@ public class ElasticConnection {
                                 objBuilder.put("index.codec", strCompressionLevel);
                             }
 
-                            objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
-                                    .setSettings(objBuilder)
-                                    .addMapping(strType, strJSONMappingData, XContentType.JSON)
-                                    .get();
+                            objCreateIndexResponse = objESClient.indices().create(new CreateIndexRequest().index(strIndex)
+                                    .settings(objBuilder)
+                                    .mapping(strType, strJSONMappingData, XContentType.JSON));
 
                             objLogger.info("objCreateIndexResponse: " + objCreateIndexResponse);
                         }
 
                         if (bIsExistsIndex
                                 || (objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())) {
-                            AcknowledgedResponse objPutMappingResponse = objESClient.admin().indices()
-                                    .preparePutMapping(strIndex).setType(strType)
-                                    .setSource(strJSONMappingData, XContentType.JSON).get();
+                            AcknowledgedResponse objPutMappingResponse = objESClient.indices()
+                                    .putMapping(new PutMappingRequest().indices(strIndex).type(strType)
+                                    .source(strJSONMappingData, XContentType.JSON));
 
                             if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
                                 try {
                                     HashMap<String, Object> mapSettings = new HashMap<>();
                                     mapSettings.put("script.max_compilations_rate", "10000/1m");
-                                    objESClient.admin().cluster().prepareUpdateSettings().setTransientSettings(mapSettings).get();
+                                    objESClient.cluster().putSettings(new ClusterUpdateSettingsRequest().transientSettings(mapSettings));
                                 } catch (Exception objEx) {
                                     objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
                                 }
@@ -1050,12 +1069,7 @@ public class ElasticConnection {
         try {
             String strCheckIndexPattern = strIndexPattern.replace("*", "").trim();
 
-            List<Object> lstClient = createESAdminClient();
-            TransportClient objESClient = (TransportClient) lstClient.get(0);
-            AdminClient objAdminClient = (AdminClient) lstClient.get(1);
-
-            GetMappingsResponse objMappingResponse = objAdminClient.indices().getMappings(new GetMappingsRequest())
-                    .get();
+            GetMappingsResponse objMappingResponse = objESClient.indices().getMapping(new GetMappingsRequest(), RequestOptions.DEFAULT);
 
             if (objMappingResponse != null && objMappingResponse.getMappings() != null) {
                 objMappingResponse.getMappings().forEach(curObject -> {
@@ -1090,12 +1104,7 @@ public class ElasticConnection {
         List<ESIndexModel> lstIndices = new ArrayList<>();
 
         try {
-            List<Object> lstClient = createESAdminClient();
-            TransportClient objESClient = (TransportClient) lstClient.get(0);
-            AdminClient objAdminClient = (AdminClient) lstClient.get(1);
-
-            GetMappingsResponse objMappingResponse = objAdminClient.indices().getMappings(new GetMappingsRequest())
-                    .get();
+            GetMappingsResponse objMappingResponse = objESClient.indices().getMapping(new GetMappingsRequest(), RequestOptions.DEFAULT);
 
             if (objMappingResponse != null && objMappingResponse.getMappings() != null) {
                 objMappingResponse.getMappings().forEach(curObject -> {
@@ -1154,36 +1163,13 @@ public class ElasticConnection {
 
     public Boolean mergeDataFromIndices(MergingDataRequestModel objMergingRequest) {
         Boolean bIsMerged = false;
-
-        String strScriptMergingIndex = generateMergingIDScript(objMergingRequest);
-
-        if (strScriptMergingIndex != null && !strScriptMergingIndex.isEmpty()) {
-            try {
-                ReindexRequestBuilder objReindexReqBuilder = ReindexAction.INSTANCE.newRequestBuilder(objESClient)
-                        .source(objMergingRequest.getIndices()
-                                .toArray(new String[objMergingRequest.getIndices().size()]))
-                        .destination(objMergingRequest.getNew_index_name())
-                        .script(new Script(ScriptType.INLINE, "painless", strScriptMergingIndex, new HashMap<>()))
-                        .timeout(TimeValue.MINUS_ONE);
-
-                BulkByScrollResponse objResponse = objReindexReqBuilder.get();
-
-                if (objResponse != null) {
-                    objLogger.warn("INFO: " + objResponse.toString());
-                    bIsMerged = true;
-                }
-            } catch (Exception objEx) {
-                objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
-            }
-        }
-
         return bIsMerged;
     }
 
     protected void refreshIndex(String strIndex) {
         try {
             if (objESClient != null) {
-                objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
+                objESClient.indices().refresh(new RefreshRequest(strIndex), RequestOptions.DEFAULT);
             }
         } catch (Exception objEx) {
             objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
