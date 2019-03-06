@@ -904,6 +904,17 @@ public class ElasticConnection {
                             } else {
                                 strFieldType = classZ.getDeclaredField(curItem.getKey()).getType().getTypeName()
                                         .toLowerCase();
+
+                                if (strFieldType.contains("list") || strFieldType.contains("set")) {
+                                    List<Object> lstValue = (ArrayList)curItem.getValue();
+
+                                    if (lstValue != null && lstValue.size() > 0) {
+                                        Object objItem = ConverterUtil.convertObjectToDataType(lstValue.get(0));
+                                        strFieldType = objItem.getClass().getCanonicalName().toLowerCase();
+                                    }
+                                } else if (strFieldType.contains("[]")) {
+                                    strFieldType = "." + strFieldType.replace("[]", "").trim();
+                                }
                             }
 
                             if (strFieldType.isEmpty()) {
