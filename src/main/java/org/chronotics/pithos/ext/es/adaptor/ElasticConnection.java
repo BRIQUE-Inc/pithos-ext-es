@@ -5,6 +5,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.chronotics.pandora.java.converter.ConverterUtil;
@@ -185,7 +186,14 @@ public class ElasticConnection {
 //                        .put("client.transport.sniff", false).build();
 //                objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
 //                        new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
-                objESClient = new RestHighLevelClient(RestClient.builder(new HttpHost(strESCoorNodeIP, intESCoorNodePort, strHttpScheme)));
+                objESClient = new RestHighLevelClient(RestClient.builder(new HttpHost(strESCoorNodeIP, intESCoorNodePort, strHttpScheme))
+                        .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
+                            @Override
+                            public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder builder) {
+                                return builder.setConnectTimeout(10000).setSocketTimeout(600000);
+                            }
+                        })
+                        .setMaxRetryTimeoutMillis(120000));
             } else {
 //                Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
 //                        .put("client.transport.sniff", false)
@@ -204,7 +212,14 @@ public class ElasticConnection {
                             public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpAsyncClientBuilder) {
                                 return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
                             }
-                        });
+                        })
+                        .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
+                            @Override
+                            public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder builder) {
+                                return builder.setConnectTimeout(10000).setSocketTimeout(600000);
+                            }
+                        })
+                        .setMaxRetryTimeoutMillis(120000);
 
                 objESClient = new RestHighLevelClient(objHttpBuilder);
             }
@@ -243,7 +258,14 @@ public class ElasticConnection {
 //                            .put("client.transport.sniff", false).build();
 //                    objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class)
 //                            .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
-                    objESClient = new RestHighLevelClient(RestClient.builder(arrHttpHost.toArray(new HttpHost[arrHttpHost.size()])));
+                    objESClient = new RestHighLevelClient(RestClient.builder(arrHttpHost.toArray(new HttpHost[arrHttpHost.size()]))
+                            .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
+                                @Override
+                                public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder builder) {
+                                    return builder.setConnectTimeout(10000).setSocketTimeout(600000);
+                                }
+                            })
+                            .setMaxRetryTimeoutMillis(120000));
                 } else {
 //                    Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
 //                            .put("client.transport.sniff", false)
@@ -262,7 +284,14 @@ public class ElasticConnection {
                                 public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpAsyncClientBuilder) {
                                     return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
                                 }
-                            });
+                            })
+                            .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
+                                @Override
+                                public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder builder) {
+                                    return builder.setConnectTimeout(10000).setSocketTimeout(600000);
+                                }
+                            })
+                            .setMaxRetryTimeoutMillis(120000);
 
                     objESClient = new RestHighLevelClient(objHttpBuilder);
                 }
@@ -1033,7 +1062,7 @@ public class ElasticConnection {
                                 || (objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())) {
                             AcknowledgedResponse objPutMappingResponse = objESClient.indices()
                                     .putMapping(new PutMappingRequest().indices(strIndex).type(strType)
-                                    .source(strJSONMappingData, XContentType.JSON));
+                                            .source(strJSONMappingData, XContentType.JSON));
 
                             if (objPutMappingResponse != null && objPutMappingResponse.isAcknowledged()) {
                                 try {
