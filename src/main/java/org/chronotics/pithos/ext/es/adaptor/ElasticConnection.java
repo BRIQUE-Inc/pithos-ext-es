@@ -891,7 +891,18 @@ public class ElasticConnection {
                                         Object objValue = ConverterUtil.convertObjectToDataType(curItem.getValue());
                                         objLogger.info("objValue: " + objValue);
 
-                                        strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
+                                        if (objValue != null) {
+                                            strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
+                                        }
+
+                                        if ((strFieldType == null || strFieldType.isEmpty()) && curItem.getValue() != null
+                                                && curItem.getValue() instanceof ArrayList) {
+                                            List<Object> lstArr = (ArrayList)curItem.getValue();
+
+                                            if (lstArr != null && lstArr.size() > 0 && lstArr.get(0) != null) {
+                                                strFieldType = ".nested";
+                                            }
+                                        }
                                     } catch (Exception objEx) {
                                         strFieldType = "java.lang.string";
                                     }
@@ -910,14 +921,19 @@ public class ElasticConnection {
 
                                     if (lstValue != null && lstValue.size() > 0) {
                                         Object objItem = ConverterUtil.convertObjectToDataType(lstValue.get(0));
-                                        strFieldType = objItem.getClass().getCanonicalName().toLowerCase();
+
+                                        if (objItem != null) {
+                                            strFieldType = objItem.getClass().getCanonicalName().toLowerCase();
+                                        } else {
+                                            strFieldType = ".nested";
+                                        }
                                     }
                                 } else if (strFieldType.contains("[]")) {
                                     strFieldType = "." + strFieldType.replace("[]", "").trim();
                                 }
                             }
 
-                            if (strFieldType.isEmpty()) {
+                            if (strFieldType == null || strFieldType.isEmpty()) {
                                 strFieldType = "java.lang.string";
                             }
 
@@ -962,6 +978,8 @@ public class ElasticConnection {
                                     objMappingField.setType("short");
                                     objMappingField.setIndex(false);
                                     objMappingField.setDoc_values(false);
+                                } else if (strFieldType.contains(".nested")) {
+                                    objMappingField.setType("nested");
                                 }
                             }
 
