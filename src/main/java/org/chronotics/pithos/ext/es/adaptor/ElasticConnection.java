@@ -1000,9 +1000,6 @@ public class ElasticConnection {
                         }
                     }
 
-                    objLogger.info("mapMappingField: " + mapMappingField);
-                    objLogger.info("mapMappingField-size: " + mapMappingField.size());
-
                     if (mapMappingField != null && mapMappingField.size() > 0) {
                         HashMap<String, HashMap<String, ESMappingFieldModel>> mapProperties = new HashMap<>();
                         mapProperties.put("properties", mapMappingField);
@@ -1037,10 +1034,11 @@ public class ElasticConnection {
                                     .get();
 
                             objLogger.info("objCreateIndexResponse: " + objCreateIndexResponse);
+                        } else {
+                            bIsCreated = true;
                         }
 
-                        if (bIsExistsIndex
-                                || (objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())) {
+                        if ((objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())) {
                             AcknowledgedResponse objPutMappingResponse = objESClient.admin().indices()
                                     .preparePutMapping(strIndex).setType(strType)
                                     .setSource(strJSONMappingData, XContentType.JSON).get();
