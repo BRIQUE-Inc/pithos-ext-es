@@ -1012,6 +1012,7 @@ public class ElasticConnection {
 
                             Settings.Builder objBuilder = Settings.builder()
                                     .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
+                                    .put("index.mapping.nested_fields.limit", mapMappingField.size() * 10)
                                     .put("index.max_result_window", 1000000000)
                                     .put("index.number_of_replicas", intNumReplica < 0 ? 0 : intNumReplica)
                                     .put("index.refresh_interval", "60s");
