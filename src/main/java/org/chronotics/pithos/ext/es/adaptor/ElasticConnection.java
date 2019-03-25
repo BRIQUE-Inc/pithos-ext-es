@@ -41,6 +41,7 @@ import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
 
 import java.net.InetAddress;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class ElasticConnection {
@@ -804,7 +805,7 @@ public class ElasticConnection {
         return bIsUpdated;
     }
 
-    public Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
+    public synchronized Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
                                HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted, Map<String, Map<String, String>> mapFieldDataType) {
         Boolean bIsCreated = false;
 
