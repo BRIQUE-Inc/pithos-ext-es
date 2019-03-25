@@ -27,6 +27,10 @@ public class ESMappingFieldModel {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     Boolean doc_values = false;
 
+    @JsonProperty("format")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    String format;
+
     public String getType() {
         return type;
     }
@@ -73,5 +77,13 @@ public class ESMappingFieldModel {
 
     public void setDoc_values(Boolean doc_values) {
         this.doc_values = doc_values;
+    }
+
+    public String getFormat() {
+        return format;
+    }
+
+    public void setFormat(String format) {
+        this.format = format;
     }
 }

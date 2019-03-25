@@ -499,6 +499,23 @@ public class ElasticService {
     }
 
     /**
+     * Insert hashmap data to ElasticSearch
+     * @param strIndex
+     * @param strType
+     * @param lstData
+     * @param strFieldDate
+     * @param lstFieldModel
+     * @param bIsUsedAutoID
+     * @param strDocIdPrefix
+     * @param mapPredefinedDataType
+     * @return
+     */
+    public Boolean insertBulkHashData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel,
+                                      Boolean bIsUsedAutoID, String strDocIdPrefix, Map<String, Map<String, String>> mapPredefinedDataType) {
+        return objESAction.insertBulkHashData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix, mapPredefinedDataType);
+    }
+
+    /**
      * Update data back to ElasticSearch
      * @param strIndex
      * @param strType

@@ -6,6 +6,7 @@ import org.chronotics.pandora.java.exception.ExceptionUtil;
 import org.chronotics.pandora.java.log.Logger;
 import org.chronotics.pandora.java.log.LoggerFactory;
 import org.chronotics.pandora.java.serialization.JacksonFilter;
+import org.chronotics.pithos.ext.es.util.ESPithosConstant;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -179,7 +180,7 @@ public class ElasticConnection {
                         .addTransportAddress(new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return objESClient;
@@ -202,7 +203,7 @@ public class ElasticConnection {
                             TransportAddress objCurTransportAddr = new TransportAddress(InetAddress.getByName(arrSplit[0].trim()), Integer.valueOf(arrSplit[1].trim()));
                             arrConnectionNode.add(objCurTransportAddr);
                         } catch (Exception objEx) {
-                            objLogger.error("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+                            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
                         }
                     }
                 }
@@ -221,7 +222,7 @@ public class ElasticConnection {
                             .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
                 }
             } catch (Exception objEx) {
-                objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
             }
         }
 
@@ -234,7 +235,7 @@ public class ElasticConnection {
                 objESClient.close();
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
     }
 
@@ -248,7 +249,7 @@ public class ElasticConnection {
             lstClient.add(objESClient);
             lstClient.add(objClient);
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return lstClient;
@@ -260,7 +261,7 @@ public class ElasticConnection {
         try {
             objClient = objESClient.admin().indices();
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return objClient;
@@ -359,7 +360,7 @@ public class ElasticConnection {
             }
 
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return mapFields;
@@ -373,7 +374,7 @@ public class ElasticConnection {
         // objESClient = null;
         // }
         // } catch (Exception objEx) {
-        // objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        // objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         // }
     }
 
@@ -616,7 +617,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return objMatrixStat;
@@ -688,7 +689,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return lstNotNullField;
@@ -771,7 +772,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return bIsDeleted;
@@ -797,14 +798,14 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.warn("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return bIsUpdated;
     }
 
     public Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
-                               HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted, HashMap<String, String> mapFieldDataType) {
+                               HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted, Map<String, Map<String, String>> mapFieldDataType) {
         Boolean bIsCreated = false;
 
         try {
@@ -880,6 +881,7 @@ public class ElasticConnection {
 
                         for (Map.Entry<String, Object> curItem : objJSONData.entrySet()) {
                             String strFieldType = "";
+                            String strFieldFormat = "";
                             String strFieldName = curItem.getKey().replace(".", "-");
 
                             if (lstData.get(intCheck) instanceof HashMap) {
@@ -909,7 +911,21 @@ public class ElasticConnection {
 
                                 } else {
                                     if (mapFieldDataType != null && mapFieldDataType.containsKey(curItem.getKey())) {
-                                        strFieldType = mapFieldDataType.get(curItem.getKey()).toLowerCase();
+                                        if (mapFieldDataType.get(curItem.getKey()) != null) {
+                                            Map<String, String> mapCurFieldType = mapFieldDataType.get(curItem.getKey());
+
+                                            if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_TYPE)) {
+                                                strFieldType = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_TYPE).toLowerCase();
+
+                                                if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_FORMAT)) {
+                                                    strFieldFormat = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_FORMAT);
+                                                }
+                                            } else {
+                                                strFieldType = "java.lang.string";
+                                            }
+                                        } else {
+                                            strFieldType = "java.lang.string";
+                                        }
                                     }
                                 }
                             } else {
@@ -946,6 +962,11 @@ public class ElasticConnection {
                             objMappingField.setIndex(null);
                             objMappingField.setNorms(null);
                             objMappingField.setDoc_values(null);
+                            objMappingField.setFormat(null);
+
+                            if (strFieldFormat != null && !strFieldFormat.isEmpty()) {
+                                objMappingField.setFormat(strFieldFormat);
+                            }
 
                             if (curItem.getKey().toLowerCase().equals(strDateField.toLowerCase())) {
                                 objMappingField.setType("date");
@@ -1050,7 +1071,7 @@ public class ElasticConnection {
                                     mapSettings.put("script.max_compilations_rate", "10000/1m");
                                     objESClient.admin().cluster().prepareUpdateSettings().setTransientSettings(mapSettings).get();
                                 } catch (Exception objEx) {
-                                    objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                                    objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
                                 }
 
                                 bIsCreated = true;
@@ -1060,7 +1081,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return bIsCreated;
@@ -1108,7 +1129,7 @@ public class ElasticConnection {
 
             closeESClient(objESClient);
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return lstIndices;
@@ -1144,7 +1165,7 @@ public class ElasticConnection {
 
             closeESClient(objESClient);
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return lstIndices;
@@ -1174,7 +1195,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
         }
 
         return lstReturnField;
@@ -1197,11 +1218,11 @@ public class ElasticConnection {
                 BulkByScrollResponse objResponse = objReindexReqBuilder.get();
 
                 if (objResponse != null) {
-                    objLogger.warn("INFO: " + objResponse.toString());
+                    objLogger.debug("INFO: " + objResponse.toString());
                     bIsMerged = true;
                 }
             } catch (Exception objEx) {
-                objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
             }
         }
 
@@ -1214,7 +1235,7 @@ public class ElasticConnection {
                 objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
             }
         } catch (Exception objEx) {
-            objLogger.warn("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
     }
 }

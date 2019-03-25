@@ -40,7 +40,7 @@ public class ESFilterConverterUtil {
                 objReversedBoolQueryBuilder.mustNot(objBoolQueryBuilder);
             }
         } catch (Exception objEx) {
-            objLogger.error("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
         }
 
         if (!bIsReversedFilter) {
