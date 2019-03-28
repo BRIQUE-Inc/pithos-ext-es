@@ -35,7 +35,7 @@ public class ElasticCluster {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.error(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.error(ExceptionUtil.getStackTrace(objEx));
         }
 
         return mapStatus;

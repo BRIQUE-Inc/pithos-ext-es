@@ -262,7 +262,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return mapResult;
@@ -365,7 +365,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return objQueryResult;
@@ -521,7 +521,7 @@ public class ElasticFilter {
             objRequestBuilder.setSource(objSearchSourceBuilder);
             objSearchResponse = objRequestBuilder.get();
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return objSearchResponse;
@@ -560,7 +560,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return mapNullity;
@@ -773,7 +773,7 @@ public class ElasticFilter {
 
             mapFieldStats = statsField(strIndex, strType, lstNumberField, lstTextField, bIsSimpleStats);
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         if (mapHistogramPoint != null && mapHistogramPoint.size() > 0) {
@@ -821,7 +821,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lTotalHit;
@@ -865,7 +865,7 @@ public class ElasticFilter {
                                 mapStats.put(lstStringField.get(intCount), lstNullityStats);
                             }
                         } catch (Exception objEx) {
-                            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+                            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
                         }
                     }
 
@@ -873,7 +873,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return mapStats;
@@ -898,7 +898,7 @@ public class ElasticFilter {
                 return null;
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
 
             return null;
         }
@@ -1159,7 +1159,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return mapFieldStat;
@@ -1189,7 +1189,7 @@ public class ElasticFilter {
 
                 return objSearchRequestBuilder.get(new TimeValue(10, TimeUnit.MINUTES));
             } catch (Exception objEx) {
-                objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+                objLogger.debug(ExceptionUtil.getStackTrace(objEx));
             }
         }
 
@@ -1251,7 +1251,7 @@ public class ElasticFilter {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lstHit;
