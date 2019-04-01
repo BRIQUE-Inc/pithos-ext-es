@@ -1268,4 +1268,73 @@ public class ElasticFilter {
 
         return lstHit;
     }
+
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize, Boolean bShouldRefresh, String[] lstReturnedField) {
+        List<SearchHit> lstHit = new ArrayList<>();
+
+        try {
+            if (objESClient != null && objCustomQueryBuilder != null) {
+                //Refresh index before export
+                if (bShouldRefresh) {
+                    objESConnection.refreshIndex(strIndex);
+                }
+
+                if (intSize == -1) {
+                    List<String> lstScrollId = new ArrayList<>();
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setFetchSource(lstReturnedField, null)
+                            .setScroll(new TimeValue(lScrollTTL))
+                            .setSize(20000).get();
+
+                    do {
+                        if (objSearchResponse != null && objSearchResponse.getHits() != null
+                                && objSearchResponse.getHits().getTotalHits() > 0
+                                && objSearchResponse.getHits().getHits() != null
+                                && objSearchResponse.getHits().getHits().length > 0) {
+                            List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+
+                            lstHit.addAll(lstCurHit);
+
+                            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                    .setScroll(new TimeValue(lScrollTTL)).get();
+
+                            lstScrollId.add(objSearchResponse.getScrollId());
+                        } else {
+                            break;
+                        }
+                    } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0);
+
+                    objESConnection.deleteScrollId(lstScrollId);
+                } else if (intSize <= 1000000000) {
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setFetchSource(lstReturnedField, null)
+                            .setSize(intSize).get();
+
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+                        List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+                        lstHit.addAll(lstCurHit);
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lstHit;
+    }
 }
