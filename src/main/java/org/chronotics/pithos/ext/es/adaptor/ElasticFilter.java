@@ -909,6 +909,8 @@ public class ElasticFilter {
                 .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                 .setSize(intPageSize).get();
 
+        List<String> lstScrollId = new ArrayList<>();
+
         do {
             if (objSearchResponse != null && objSearchResponse.getHits() != null
                     && objSearchResponse.getHits().getTotalHits() > 0
@@ -918,9 +920,13 @@ public class ElasticFilter {
 
             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
                     .setScroll(new TimeValue(lScrollTTL)).get();
+
+            lstScrollId.add(objSearchResponse.getScrollId());
         } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                 && objSearchResponse.getHits().getHits() != null
                 && objSearchResponse.getHits().getHits().length > 0);
+
+        objESConnection.deleteScrollId(lstScrollId);
 
         return objSearchResponse;
     }
@@ -1207,12 +1213,14 @@ public class ElasticFilter {
                 }
 
                 if (intSize == -1) {
+                    List<String> lstScrollId = new ArrayList<>();
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
 
                     SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                             .setSource(objSearchSourceBuilder)
-                            .addSort(objFieldSortBuilder).setScroll(new TimeValue(lScrollTTL))
+                            .addSort(objFieldSortBuilder)
+                            .setScroll(new TimeValue(lScrollTTL))
                             .setSize(20000).get();
 
                     do {
@@ -1226,12 +1234,16 @@ public class ElasticFilter {
 
                             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
                                     .setScroll(new TimeValue(lScrollTTL)).get();
+
+                            lstScrollId.add(objSearchResponse.getScrollId());
                         } else {
                             break;
                         }
                     } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0);
+
+                    objESConnection.deleteScrollId(lstScrollId);
                 } else if (intSize <= 1000000000) {
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.query(objCustomQueryBuilder);

@@ -18,6 +18,8 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRespon
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.search.ClearScrollRequest;
+import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -1278,5 +1280,26 @@ public class ElasticConnection {
         } catch (Exception objEx) {
             objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
+    }
+
+    protected Boolean deleteScrollId(List<String> lstScrollId) {
+        Boolean bIsClear = false;
+
+        try {
+            if (objESClient != null) {
+                ClearScrollRequest objRequest = new ClearScrollRequest();
+                objRequest.setScrollIds(lstScrollId);
+
+                ClearScrollResponse objResponse = objESClient.clearScroll(objRequest).get();
+
+                if (objResponse != null && objResponse.isSucceeded()) {
+                    bIsClear = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return bIsClear;
     }
 }
