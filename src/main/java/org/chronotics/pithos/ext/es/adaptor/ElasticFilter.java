@@ -8,9 +8,7 @@ import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.ESConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterOperationConstant;
-import org.elasticsearch.action.search.SearchRequestBuilder;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.search.*;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.*;
@@ -36,6 +34,7 @@ import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -909,6 +908,8 @@ public class ElasticFilter {
                 .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
                 .setSize(intPageSize).get();
 
+        List<String> lstScrollId = new ArrayList<>();
+
         do {
             if (objSearchResponse != null && objSearchResponse.getHits() != null
                     && objSearchResponse.getHits().getTotalHits() > 0
@@ -918,9 +919,13 @@ public class ElasticFilter {
 
             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
                     .setScroll(new TimeValue(lScrollTTL)).get();
+
+            lstScrollId.add(objSearchResponse.getScrollId());
         } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                 && objSearchResponse.getHits().getHits() != null
                 && objSearchResponse.getHits().getHits().length > 0);
+
+        objESConnection.deleteScrollId(lstScrollId);
 
         return objSearchResponse;
     }
@@ -1207,12 +1212,14 @@ public class ElasticFilter {
                 }
 
                 if (intSize == -1) {
+                    List<String> lstScrollId = new ArrayList<>();
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
 
                     SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                             .setSource(objSearchSourceBuilder)
-                            .addSort(objFieldSortBuilder).setScroll(new TimeValue(lScrollTTL))
+                            .addSort(objFieldSortBuilder)
+                            .setScroll(new TimeValue(lScrollTTL))
                             .setSize(20000).get();
 
                     do {
@@ -1226,12 +1233,16 @@ public class ElasticFilter {
 
                             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
                                     .setScroll(new TimeValue(lScrollTTL)).get();
+
+                            lstScrollId.add(objSearchResponse.getScrollId());
                         } else {
                             break;
                         }
                     } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
                             && objSearchResponse.getHits().getHits() != null
                             && objSearchResponse.getHits().getHits().length > 0);
+
+                    objESConnection.deleteScrollId(lstScrollId);
                 } else if (intSize <= 1000000000) {
                     SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                     objSearchSourceBuilder.query(objCustomQueryBuilder);
@@ -1247,6 +1258,143 @@ public class ElasticFilter {
                             && objSearchResponse.getHits().getHits().length > 0) {
                         List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
                         lstHit.addAll(lstCurHit);
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lstHit;
+    }
+
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize, Boolean bShouldRefresh, String[] lstReturnedField) {
+        List<SearchHit> lstHit = new ArrayList<>();
+
+        try {
+            if (objESClient != null && objCustomQueryBuilder != null) {
+                //Refresh index before export
+                if (bShouldRefresh) {
+                    objESConnection.refreshIndex(strIndex);
+                }
+
+                if (intSize == -1) {
+                    List<String> lstScrollId = new ArrayList<>();
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setFetchSource(lstReturnedField, null)
+                            .setScroll(new TimeValue(lScrollTTL))
+                            .setSize(20000).get();
+
+                    do {
+                        if (objSearchResponse != null && objSearchResponse.getHits() != null
+                                && objSearchResponse.getHits().getTotalHits() > 0
+                                && objSearchResponse.getHits().getHits() != null
+                                && objSearchResponse.getHits().getHits().length > 0) {
+                            List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+
+                            lstHit.addAll(lstCurHit);
+
+                            objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                    .setScroll(new TimeValue(lScrollTTL)).get();
+
+                            lstScrollId.add(objSearchResponse.getScrollId());
+                        } else {
+                            break;
+                        }
+                    } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0);
+
+                    objESConnection.deleteScrollId(lstScrollId);
+                } else if (intSize <= 1000000000) {
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setFetchSource(lstReturnedField, null)
+                            .setSize(intSize).get();
+
+                    if (objSearchResponse != null && objSearchResponse.getHits() != null
+                            && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0) {
+                        List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+                        lstHit.addAll(lstCurHit);
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lstHit;
+    }
+
+    public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh) {
+        List<SearchHit> lstHit = new ArrayList<>();
+
+        try {
+            if (objESClient != null && lstCustomQueryBuilder != null && lstCustomQueryBuilder.size() > 0) {
+                //Refresh index before export
+                if (bShouldRefresh) {
+                    objESConnection.refreshIndex(strIndex);
+                }
+
+                MultiSearchRequestBuilder objMultiSearchRequest = objESClient.prepareMultiSearch();
+
+                for (int intCount = 0; intCount < lstCustomQueryBuilder.size(); intCount++) {
+                    SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                    objSearchSourceBuilder.query(lstCustomQueryBuilder.get(intCount));
+
+                    SearchRequestBuilder objCurRequestBuilder = objESClient.prepareSearch(strIndex);
+                    objCurRequestBuilder.setTypes(strType).setSource(objSearchSourceBuilder)
+                            .setSize(intSize)
+                            .setIndices(strIndex);
+
+                    objMultiSearchRequest.add(objCurRequestBuilder);
+                }
+
+                if (intSize == -1) {
+                    return null;
+                } else if (intSize <= 1000000000) {
+                    MultiSearchResponse objSearchResponse = objMultiSearchRequest.get();
+
+                    if (objSearchResponse != null && objSearchResponse.getResponses() != null
+                            && objSearchResponse.getResponses().length > 0) {
+                        List<SearchResponse> lstSearchResponse = new ArrayList<>();
+                        List<Integer> lstCountIndex = new ArrayList<>();
+                        Integer intCount = 0;
+
+                        for (MultiSearchResponse.Item objItemResponse : objSearchResponse.getResponses()) {
+                            if (objItemResponse.getResponse() != null) {
+                                lstCountIndex.add(intCount++);
+                                lstSearchResponse.add(objItemResponse.getResponse());
+                            }
+                        }
+
+                        ConcurrentHashMap<Integer, List<SearchHit>> mapHit = new ConcurrentHashMap<>();
+
+                        lstCountIndex.parallelStream().forEach(intCountIndex -> {
+                            try {
+                                List<SearchHit> lstCurHit = Arrays.asList(lstSearchResponse.get(intCountIndex).getHits().getHits());
+
+                                if (lstCurHit != null && lstCurHit.size() > 0) {
+                                    mapHit.put(intCountIndex, lstCurHit);
+                                }
+                            } catch (Exception objEx) {
+                            }
+                        });
+
+                        for (Map.Entry<Integer, List<SearchHit>> curItem : mapHit.entrySet()) {
+                            lstHit.addAll(curItem.getValue());
+                        }
                     }
                 }
             }
