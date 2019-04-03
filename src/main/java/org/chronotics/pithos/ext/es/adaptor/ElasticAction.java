@@ -436,7 +436,7 @@ public class ElasticAction {
                         if (false == bulkResponse.getItems()[i].isFailed()) {
                             continue;
                         }
-                        objLogger.debug("[" + bulkRequest.requests().get(i) + "]: [" + ExceptionUtil.getStrackTrace(bulkResponse.getItems()[i].getFailure().getCause()) + "]");
+                        objLogger.warn("[" + bulkRequest.requests().get(i) + "]: [" + ExceptionUtil.getStackTrace(bulkResponse.getItems()[i].getFailure().getCause()) + "]");
                     }
                 }
 
@@ -448,7 +448,7 @@ public class ElasticAction {
             public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
                 objLogger.debug("ERR: After Bulk with Throwable - " + String.valueOf(l) + " - "
                         + bulkRequest.numberOfActions());
-                objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(throwable));
+                objLogger.warn("ERR: " + ExceptionUtil.getStackTrace(throwable));
             }
         }).setBulkActions(intDataSize < intNumBulkOperation ? intDataSize : intNumBulkOperation)
                 .setConcurrentRequests(intNumOfThread)
@@ -560,7 +560,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsCreated;
@@ -677,7 +677,7 @@ public class ElasticAction {
             strConvertScript = objBuilder.toString();
             strCatchConvertScript = objCatchBuilder.toString();
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return new ArrayList<>(Arrays.asList(strConvertScript, strCatchConvertScript));
@@ -833,13 +833,13 @@ public class ElasticAction {
                         objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
                     } catch (Exception objEx) {
                         bIsFinish = false;
-                        objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+                        objLogger.debug(ExceptionUtil.getStackTrace(objEx));
 
                         break;
                     }
 
-                    objLogger.info("Cur Hit: " + lCurNumHit);
-                    objLogger.info("Total Hits: " + lTotalHit);
+                    objLogger.debug("Cur Hit: " + lCurNumHit);
+                    objLogger.debug("Total Hits: " + lTotalHit);
 
                     //3. Continue to scroll
                     objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
@@ -935,7 +935,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsHandled;
@@ -1311,13 +1311,13 @@ public class ElasticAction {
                             objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
                         } catch (Exception objEx) {
                             bIsFinish = false;
-                            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
 
                             break;
                         }
 
-                        objLogger.info("Cur Hit: " + lCurNumHit);
-                        objLogger.info("Total Hits: " + lTotalHit);
+                        objLogger.debug("Cur Hit: " + lCurNumHit);
+                        objLogger.debug("Total Hits: " + lTotalHit);
 
                         //3. Continue to scroll
                         objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
@@ -1628,13 +1628,13 @@ public class ElasticAction {
                         objBulkProcessor.awaitClose(10l, TimeUnit.MINUTES);
                     } catch (Exception objEx) {
                         bIsFinish = false;
-                        objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                        objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
 
                         break;
                     }
 
-                    objLogger.info("Cur Hit: " + lCurNumHit);
-                    objLogger.info("Total Hits: " + lTotalHit);
+                    objLogger.debug("Cur Hit: " + lCurNumHit);
+                    objLogger.debug("Total Hits: " + lTotalHit);
 
                     //3. Continue to scroll
                     objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
@@ -1688,7 +1688,7 @@ public class ElasticAction {
                     lstHeader = lstHeader.stream().map(str -> str.toString().replace("-", ".")).collect(Collectors.toList());
                     CSVUtil.writeLine(objFileWriter, lstHeader);
 
-                    objLogger.info("INFO: " + Arrays.toString(lstHeader.toArray()));
+                    objLogger.debug("INFO: " + Arrays.toString(lstHeader.toArray()));
                 }
 
                 List<Object> lstValue = Arrays
@@ -1710,7 +1710,7 @@ public class ElasticAction {
                 intCount++;
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
             bIsWrote = false;
         }
 
@@ -1730,7 +1730,7 @@ public class ElasticAction {
                 intCount++;
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
             bIsWrote = false;
         }
 
@@ -1775,7 +1775,7 @@ public class ElasticAction {
                 intCount++;
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
             bIsWrote = false;
         }
 
@@ -1842,7 +1842,7 @@ public class ElasticAction {
             }
         } catch (Exception objEx) {
             bIsExported = false;
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         if (bIsExported) {
@@ -2045,7 +2045,7 @@ public class ElasticAction {
             }
         } catch (Exception objEx) {
             bIsExported = false;
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         if (bIsExported) {
@@ -2306,7 +2306,7 @@ public class ElasticAction {
                                     break;
                                 }
 
-                                objLogger.info("Loop: " + intNumLoop + " Hit: " + objSearchResponse.getHits().getHits().length + " - Time: " + (Calendar.getInstance().getTimeInMillis() - dtCurHitTime.getTimeInMillis()) / 1000.0 + "secs");
+                                objLogger.debug("Loop: " + intNumLoop + " Hit: " + objSearchResponse.getHits().getHits().length + " - Time: " + (Calendar.getInstance().getTimeInMillis() - dtCurHitTime.getTimeInMillis()) / 1000.0 + "secs");
                             }
 
                             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
@@ -2325,7 +2325,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("WARN: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         Long lElapsedTime = Calendar.getInstance().getTimeInMillis() - objBegin.getTimeInMillis();
@@ -2632,7 +2632,7 @@ public class ElasticAction {
                                     break;
                                 }
 
-                                objLogger.info("Loop: " + intNumLoop + " Hit: " + objSearchResponse.getHits().getHits().length + " - Time: " + (Calendar.getInstance().getTimeInMillis() - dtCurHitTime.getTimeInMillis()) / 1000.0 + "secs");
+                                objLogger.debug("Loop: " + intNumLoop + " Hit: " + objSearchResponse.getHits().getHits().length + " - Time: " + (Calendar.getInstance().getTimeInMillis() - dtCurHitTime.getTimeInMillis()) / 1000.0 + "secs");
                             }
 
                             objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
@@ -2651,7 +2651,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("WARN: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         Long lElapsedTime = Calendar.getInstance().getTimeInMillis() - objBegin.getTimeInMillis();
@@ -2887,7 +2887,7 @@ public class ElasticAction {
                     try {
                         CSVUtil.writeLine(objFileWriter, curData, ',');
                     } catch (Exception objEx) {
-                        objLogger.debug("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+                        objLogger.debug("WARN: " + ExceptionUtil.getStackTrace(objEx));
                     }
                 });
 
@@ -2899,7 +2899,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("WARN: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("WARN: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         Long lElapsedTime = Calendar.getInstance().getTimeInMillis() - objBegin.getTimeInMillis();
@@ -3009,7 +3009,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsPrepAll;
@@ -3135,7 +3135,7 @@ public class ElasticAction {
             }
         } catch (Exception objEx) {
             bIsUpdated = false;
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsUpdated;
@@ -3170,7 +3170,7 @@ public class ElasticAction {
             }
         } catch (Exception objEx) {
             bIsUpdated = false;
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsUpdated;
@@ -3205,7 +3205,7 @@ public class ElasticAction {
             }
         } catch (Exception objEx) {
             bIsUpdated = false;
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsUpdated;
@@ -3296,7 +3296,7 @@ public class ElasticAction {
             }
         } catch (Exception objEx) {
             bIsUpdated = false;
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsUpdated;
@@ -3347,7 +3347,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsUpdated;
@@ -3440,7 +3440,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsInserted;
@@ -3498,7 +3498,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsInserted;
@@ -3510,7 +3510,7 @@ public class ElasticAction {
 
         try {
             if (lstFieldModel == null || lstFieldModel.size() <= 0) {
-                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false, mapPredefinedDataType);
+                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false);
                 lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
             }
 
@@ -3547,7 +3547,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsInserted;
@@ -3609,7 +3609,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsInserted;

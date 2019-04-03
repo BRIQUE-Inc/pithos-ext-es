@@ -10,10 +10,16 @@ import org.chronotics.pithos.ext.es.util.ESPithosConstant;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.types.TypesExistsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.search.ClearScrollRequest;
+import org.elasticsearch.action.search.ClearScrollResponse;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -181,7 +187,7 @@ public class ElasticConnection {
                         .addTransportAddress(new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.error(ExceptionUtil.getStackTrace(objEx));
         }
 
         return objESClient;
@@ -204,7 +210,7 @@ public class ElasticConnection {
                             TransportAddress objCurTransportAddr = new TransportAddress(InetAddress.getByName(arrSplit[0].trim()), Integer.valueOf(arrSplit[1].trim()));
                             arrConnectionNode.add(objCurTransportAddr);
                         } catch (Exception objEx) {
-                            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+                            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
                         }
                     }
                 }
@@ -223,7 +229,7 @@ public class ElasticConnection {
                             .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
                 }
             } catch (Exception objEx) {
-                objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+                objLogger.error(ExceptionUtil.getStackTrace(objEx));
             }
         }
 
@@ -236,7 +242,7 @@ public class ElasticConnection {
                 objESClient.close();
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
     }
 
@@ -250,7 +256,7 @@ public class ElasticConnection {
             lstClient.add(objESClient);
             lstClient.add(objClient);
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lstClient;
@@ -262,7 +268,7 @@ public class ElasticConnection {
         try {
             objClient = objESClient.admin().indices();
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return objClient;
@@ -361,7 +367,7 @@ public class ElasticConnection {
             }
 
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return mapFields;
@@ -375,7 +381,7 @@ public class ElasticConnection {
         // objESClient = null;
         // }
         // } catch (Exception objEx) {
-        // objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+        // objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         // }
     }
 
@@ -618,7 +624,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return objMatrixStat;
@@ -690,7 +696,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lstNotNullField;
@@ -761,6 +767,42 @@ public class ElasticConnection {
         return lstReturn;
     }
 
+    public Boolean checkIndexExisted(String strIndex) {
+        Boolean bIsExisted = false;
+
+        try {
+            if (objESClient != null) {
+                IndicesExistsResponse objResponse = objESClient.admin().indices().exists(new IndicesExistsRequest().indices(strIndex)).get();
+
+                if (objResponse != null && objResponse.isExists()) {
+                    bIsExisted = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return bIsExisted;
+    }
+
+    public Boolean checkIndexAndTypeExisted(String strIndex, String strType) {
+        Boolean bIsExisted = false;
+
+        try {
+            if (checkIndexExisted(strIndex)) {
+                TypesExistsResponse objResponse = objESClient.admin().indices().typesExists(new TypesExistsRequest(new String[] {strIndex}, strType)).get();
+
+                if (objResponse != null && objResponse.isExists()) {
+                    bIsExisted = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return bIsExisted;
+    }
+
     public Boolean deleteIndex(String strIndex) {
         Boolean bIsDeleted = false;
 
@@ -773,7 +815,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsDeleted;
@@ -799,7 +841,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsUpdated;
@@ -1072,7 +1114,7 @@ public class ElasticConnection {
                                     mapSettings.put("script.max_compilations_rate", "10000/1m");
                                     objESClient.admin().cluster().prepareUpdateSettings().setTransientSettings(mapSettings).get();
                                 } catch (Exception objEx) {
-                                    objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+                                    objLogger.debug(ExceptionUtil.getStackTrace(objEx));
                                 }
 
                                 bIsCreated = true;
@@ -1082,7 +1124,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.error(ExceptionUtil.getStackTrace(objEx));
         }
 
         return bIsCreated;
@@ -1130,7 +1172,7 @@ public class ElasticConnection {
 
             closeESClient(objESClient);
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lstIndices;
@@ -1166,7 +1208,7 @@ public class ElasticConnection {
 
             closeESClient(objESClient);
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lstIndices;
@@ -1196,7 +1238,7 @@ public class ElasticConnection {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug(ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
 
         return lstReturnField;
@@ -1223,7 +1265,7 @@ public class ElasticConnection {
                     bIsMerged = true;
                 }
             } catch (Exception objEx) {
-                objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+                objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
             }
         }
 
@@ -1236,7 +1278,28 @@ public class ElasticConnection {
                 objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
             }
         } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStrackTrace(objEx));
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
         }
+    }
+
+    protected Boolean deleteScrollId(List<String> lstScrollId) {
+        Boolean bIsClear = false;
+
+        try {
+            if (objESClient != null) {
+                ClearScrollRequest objRequest = new ClearScrollRequest();
+                objRequest.setScrollIds(lstScrollId);
+
+                ClearScrollResponse objResponse = objESClient.clearScroll(objRequest).get();
+
+                if (objResponse != null && objResponse.isSucceeded()) {
+                    bIsClear = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return bIsClear;
     }
 }
