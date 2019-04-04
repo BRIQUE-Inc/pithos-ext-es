@@ -1337,7 +1337,7 @@ public class ElasticFilter {
         return lstHit;
     }
 
-    public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh) {
+    public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh, String[] arrReturnField) {
         List<SearchHit> lstHit = new ArrayList<>();
 
         try {
@@ -1356,7 +1356,8 @@ public class ElasticFilter {
                     SearchRequestBuilder objCurRequestBuilder = objESClient.prepareSearch(strIndex);
                     objCurRequestBuilder.setTypes(strType).setSource(objSearchSourceBuilder)
                             .setSize(intSize)
-                            .setIndices(strIndex);
+                            .setIndices(strIndex)
+                            .setFetchSource(arrReturnField, null);
 
                     objMultiSearchRequest.add(objCurRequestBuilder);
                 }
