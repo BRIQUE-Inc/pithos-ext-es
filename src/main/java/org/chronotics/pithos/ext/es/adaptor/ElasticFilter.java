@@ -1337,6 +1337,41 @@ public class ElasticFilter {
         return lstHit;
     }
 
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intFrom, Integer intSize, Boolean bShouldRefresh, String[] lstReturnedField) {
+        List<SearchHit> lstHit = new ArrayList<>();
+
+        try {
+            if (objESClient != null && objCustomQueryBuilder != null) {
+                //Refresh index before export
+                if (bShouldRefresh) {
+                    objESConnection.refreshIndex(strIndex);
+                }
+
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                        .setSource(objSearchSourceBuilder)
+                        .addSort(objFieldSortBuilder)
+                        .setFetchSource(lstReturnedField, null)
+                        .setFrom(intFrom)
+                        .setSize(intSize).get();
+
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0
+                        && objSearchResponse.getHits().getHits() != null
+                        && objSearchResponse.getHits().getHits().length > 0) {
+                    List<SearchHit> lstCurHit = Arrays.asList(objSearchResponse.getHits().getHits());
+                    lstHit.addAll(lstCurHit);
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lstHit;
+    }
+
     public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh, String[] arrReturnField) {
         List<SearchHit> lstHit = new ArrayList<>();
 

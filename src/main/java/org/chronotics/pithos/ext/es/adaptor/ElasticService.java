@@ -656,6 +656,10 @@ public class ElasticService {
         return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize, bShouldRefresh, lstReturnedField);
     }
 
+    public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intFrom, Integer intSize, Boolean bShouldRefresh, String[] lstReturnedField) {
+        return  objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intFrom, intSize, bShouldRefresh, lstReturnedField);
+    }
+
     public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh, String[] arrReturnField) {
         return objESFilter.getCustomMultipleQueryValue(strIndex, strType, lstCustomQueryBuilder, intSize, bShouldRefresh, arrReturnField);
     }
