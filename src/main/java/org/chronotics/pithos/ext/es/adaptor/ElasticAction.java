@@ -3447,61 +3447,7 @@ public class ElasticAction {
     }
 
     public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix) {
-        Boolean bIsInserted = false;
-
-        try {
-            if (lstFieldModel == null || lstFieldModel.size() <= 0) {
-                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false);
-                lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
-            }
-
-            if (objESClient != null) {
-                ObjectMapper objCurrentMapper = new ObjectMapper();
-                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-
-                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, lstData.size());
-
-                if (objBulkProcessor != null) {
-                    for (int intCount = 0; intCount < lstData.size(); intCount++) {
-                        Object objData = lstData.get(intCount);
-
-                        String strGenerateId = strDocIdPrefix + "_" + strIndex + "_" + strType + "_" + intCount;
-
-                        if (objData instanceof HashMap) {
-                            HashMap<String, Object> mapOriginal = (HashMap<String, Object>) objData;
-
-                            mapOriginal = ESConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
-
-                            if (bIsUsedAutoID) {
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType)
-                                        .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
-                            } else {
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
-                                        .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
-                            }
-                        } else {
-                            if (bIsUsedAutoID) {
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType)
-                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
-                            } else {
-                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
-                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
-                            }
-                        }
-                    }
-
-                    objBulkProcessor.flush();
-                    objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
-
-                    bIsInserted = true;
-                }
-            }
-        } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
-        }
-
-        return bIsInserted;
+        return insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix, null);
     }
 
     public Boolean insertBulkHashData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel,
@@ -3599,6 +3545,64 @@ public class ElasticAction {
                         } else {
                             objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
                                     .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
+                        }
+                    }
+
+                    objBulkProcessor.flush();
+                    objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+
+                    bIsInserted = true;
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return bIsInserted;
+    }
+
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix, Map<String, Map<String, String>> mapPredefinedDataType) {
+        Boolean bIsInserted = false;
+
+        try {
+            if (lstFieldModel == null || lstFieldModel.size() <= 0) {
+                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false, mapPredefinedDataType);
+                lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
+            }
+
+            if (objESClient != null) {
+                ObjectMapper objCurrentMapper = new ObjectMapper();
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+                BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, lstData.size());
+
+                if (objBulkProcessor != null) {
+                    for (int intCount = 0; intCount < lstData.size(); intCount++) {
+                        Object objData = lstData.get(intCount);
+
+                        String strGenerateId = strDocIdPrefix + "_" + strIndex + "_" + strType + "_" + intCount;
+
+                        if (objData instanceof HashMap) {
+                            HashMap<String, Object> mapOriginal = (HashMap<String, Object>) objData;
+
+                            mapOriginal = ESConverterUtil.convertMapToMapType(mapOriginal, lstFieldModel);
+
+                            if (bIsUsedAutoID) {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType)
+                                        .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
+                            } else {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
+                                        .source(objCurrentMapper.writeValueAsString(mapOriginal), XContentType.JSON));
+                            }
+                        } else {
+                            if (bIsUsedAutoID) {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType)
+                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                            } else {
+                                objBulkProcessor.add(new IndexRequest(strIndex, strType).id(strGenerateId)
+                                        .source(objCurrentMapper.writeValueAsString(lstData.get(intCount)), XContentType.JSON));
+                            }
                         }
                     }
 

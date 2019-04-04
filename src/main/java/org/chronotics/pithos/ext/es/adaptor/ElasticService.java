@@ -451,7 +451,22 @@ public class ElasticService {
      * @return
      */
     public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix) {
-        return objESAction.insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix);
+        return insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix, null);
+    }
+
+    /**
+     * Insert data to ElasticSearch with Bulk Mode and pre-defined ID prefix (optinal)
+     * @param strIndex
+     * @param strType
+     * @param lstData
+     * @param strFieldDate
+     * @param lstFieldModel
+     * @param bIsUsedAutoID
+     * @param strDocIdPrefix
+     * @return
+     */
+    public Boolean insertBulkData(String strIndex, String strType, List<?> lstData, String strFieldDate, List<ESFieldModel> lstFieldModel, Boolean bIsUsedAutoID, String strDocIdPrefix, Map<String, Map<String, String>> mapPredefinedDataType) {
+        return objESAction.insertBulkData(strIndex, strType, lstData, strFieldDate, lstFieldModel, bIsUsedAutoID, strDocIdPrefix, mapPredefinedDataType);
     }
 
     /**
