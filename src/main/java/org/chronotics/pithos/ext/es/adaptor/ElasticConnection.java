@@ -927,68 +927,70 @@ public class ElasticConnection {
                             String strFieldFormat = "";
                             String strFieldName = curItem.getKey().replace(".", "-");
 
-                            if (lstData.get(intCheck) instanceof HashMap) {
-                                bIsHashMap = true;
+                            if (mapFieldDataType != null && mapFieldDataType.containsKey(curItem.getKey())) {
+                                if (mapFieldDataType.get(curItem.getKey()) != null) {
+                                    Map<String, String> mapCurFieldType = mapFieldDataType.get(curItem.getKey());
 
-                                if (mapFieldDataType == null || !mapFieldDataType.containsKey(curItem.getKey())) {
-                                    try {
-                                        objLogger.info("original Value: " + curItem.getValue());
-                                        Object objValue = ConverterUtil.convertObjectToDataType(curItem.getValue());
-                                        objLogger.info("objValue: " + objValue);
+                                    if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_TYPE)) {
+                                        strFieldType = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_TYPE).toLowerCase();
 
-                                        if (objValue != null) {
-                                            strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
+                                        if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_FORMAT)) {
+                                            strFieldFormat = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_FORMAT);
                                         }
-
-                                        if ((strFieldType == null || strFieldType.isEmpty()) && curItem.getValue() != null
-                                                && curItem.getValue() instanceof ArrayList) {
-                                            List<Object> lstArr = (ArrayList)curItem.getValue();
-
-                                            if (lstArr != null && lstArr.size() > 0 && lstArr.get(0) != null) {
-                                                strFieldType = ".nested";
-                                            }
-                                        }
-                                    } catch (Exception objEx) {
+                                    } else {
                                         strFieldType = "java.lang.string";
                                     }
-
                                 } else {
-                                    if (mapFieldDataType != null && mapFieldDataType.containsKey(curItem.getKey())) {
-                                        if (mapFieldDataType.get(curItem.getKey()) != null) {
-                                            Map<String, String> mapCurFieldType = mapFieldDataType.get(curItem.getKey());
-
-                                            if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_TYPE)) {
-                                                strFieldType = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_TYPE).toLowerCase();
-
-                                                if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_FORMAT)) {
-                                                    strFieldFormat = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_FORMAT);
-                                                }
-                                            } else {
-                                                strFieldType = "java.lang.string";
-                                            }
-                                        } else {
-                                            strFieldType = "java.lang.string";
-                                        }
-                                    }
+                                    strFieldType = "java.lang.string";
                                 }
                             } else {
-                                strFieldType = classZ.getDeclaredField(curItem.getKey()).getType().getTypeName()
-                                        .toLowerCase();
+                                if (lstData.get(intCheck) instanceof HashMap) {
+                                    bIsHashMap = true;
 
-                                if (strFieldType.contains("list") || strFieldType.contains("set")) {
-                                    List<Object> lstValue = (ArrayList)curItem.getValue();
+                                    if (mapFieldDataType == null || !mapFieldDataType.containsKey(curItem.getKey())) {
+                                        try {
+                                            objLogger.info("original Value: " + curItem.getValue());
+                                            Object objValue = ConverterUtil.convertObjectToDataType(curItem.getValue());
+                                            objLogger.info("objValue: " + objValue);
 
-                                    if (lstValue != null && lstValue.size() > 0) {
-                                        Object objItem = ConverterUtil.convertObjectToDataType(lstValue.get(0));
+                                            if (objValue != null) {
+                                                strFieldType = objValue.getClass().getCanonicalName().toLowerCase();
+                                            }
 
-                                        if (objItem != null) {
-                                            strFieldType = objItem.getClass().getCanonicalName().toLowerCase();
-                                        } else {
-                                            strFieldType = ".nested";
+                                            if ((strFieldType == null || strFieldType.isEmpty()) && curItem.getValue() != null
+                                                    && curItem.getValue() instanceof ArrayList) {
+                                                List<Object> lstArr = (ArrayList)curItem.getValue();
+
+                                                if (lstArr != null && lstArr.size() > 0 && lstArr.get(0) != null) {
+                                                    strFieldType = ".nested";
+                                                }
+                                            }
+                                        } catch (Exception objEx) {
+                                            strFieldType = "java.lang.string";
+                                        }
+
+                                    }
+                                } else {
+                                    if (mapFieldDataType == null || !mapFieldDataType.containsKey(curItem.getKey())) {
+                                        strFieldType = classZ.getDeclaredField(curItem.getKey()).getType().getTypeName()
+                                                .toLowerCase();
+
+                                        if (strFieldType.contains("list") || strFieldType.contains("set")) {
+                                            List<Object> lstValue = (ArrayList) curItem.getValue();
+
+                                            if (lstValue != null && lstValue.size() > 0) {
+                                                Object objItem = ConverterUtil.convertObjectToDataType(lstValue.get(0));
+
+                                                if (objItem != null) {
+                                                    strFieldType = objItem.getClass().getCanonicalName().toLowerCase();
+                                                } else {
+                                                    strFieldType = ".nested";
+                                                }
+                                            }
+                                        } else if (strFieldType.contains("[]")) {
+                                            strFieldType = "." + strFieldType.replace("[]", "").trim();
                                         }
                                     }
-                                } else if (strFieldType.contains("[]")) {
-                                    strFieldType = "." + strFieldType.replace("[]", "").trim();
                                 }
                             }
 
