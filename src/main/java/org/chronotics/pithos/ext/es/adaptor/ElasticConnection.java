@@ -168,6 +168,10 @@ public class ElasticConnection {
         this.strCompressionLevel = strCompressionLevel;
     }
 
+    public TransportClient getESClient() {
+        return this.objESClient;
+    }
+
     @SuppressWarnings("resource")
     protected TransportClient createESClient() {
         TransportClient objESClient = null;
@@ -925,6 +929,7 @@ public class ElasticConnection {
                         for (Map.Entry<String, Object> curItem : objJSONData.entrySet()) {
                             String strFieldType = "";
                             String strFieldFormat = "";
+                            String strFieldPath = "";
                             String strFieldName = curItem.getKey().replace(".", "-");
 
                             if (mapFieldDataType != null && mapFieldDataType.containsKey(curItem.getKey())) {
@@ -936,6 +941,10 @@ public class ElasticConnection {
 
                                         if (mapCurFieldType.containsKey(ESPithosConstant.PREDEFINED_DATA_FORMAT)) {
                                             strFieldFormat = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_FORMAT);
+                                        }
+
+                                        if (strFieldType.equals("alias")) {
+                                            strFieldPath = mapCurFieldType.get(ESPithosConstant.PREDEFINED_DATA_PATH);
                                         }
                                     } else {
                                         strFieldType = "java.lang.string";
@@ -1008,9 +1017,14 @@ public class ElasticConnection {
                             objMappingField.setNorms(null);
                             objMappingField.setDoc_values(null);
                             objMappingField.setFormat(null);
+                            objMappingField.setPath(null);
 
                             if (strFieldFormat != null && !strFieldFormat.isEmpty()) {
                                 objMappingField.setFormat(strFieldFormat);
+                            }
+
+                            if (strFieldPath != null && !strFieldPath.isEmpty()) {
+                                objMappingField.setPath(strFieldPath);
                             }
 
                             if (curItem.getKey().toLowerCase().equals(strDateField.toLowerCase())) {
@@ -1046,6 +1060,8 @@ public class ElasticConnection {
                                     objMappingField.setDoc_values(false);
                                 } else if (strFieldType.contains(".nested")) {
                                     objMappingField.setType("nested");
+                                } else if (strFieldType.contains("alias")) {
+                                    objMappingField.setType("alias");
                                 }
                             }
 
@@ -1284,7 +1300,7 @@ public class ElasticConnection {
         }
     }
 
-    protected Boolean deleteScrollId(List<String> lstScrollId) {
+    public Boolean deleteScrollId(List<String> lstScrollId) {
         Boolean bIsClear = false;
 
         try {

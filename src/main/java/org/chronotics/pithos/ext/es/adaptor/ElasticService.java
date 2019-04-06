@@ -2,6 +2,7 @@ package org.chronotics.pithos.ext.es.adaptor;
 
 import org.chronotics.pithos.ext.es.model.*;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
@@ -88,6 +89,10 @@ public class ElasticService {
 
     public void setCompressionLevel(String strCompressionLevel) {
         this.objESConnection.strCompressionLevel = strCompressionLevel;
+    }
+
+    public TransportClient getESClient() {
+        return this.objESConnection.getESClient();
     }
 
     public void closeInstance() {
@@ -662,5 +667,9 @@ public class ElasticService {
 
     public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh, String[] arrReturnField) {
         return objESFilter.getCustomMultipleQueryValue(strIndex, strType, lstCustomQueryBuilder, intSize, bShouldRefresh, arrReturnField);
+    }
+
+    public Boolean deleteScrollId(List<String> lstScrollId) {
+        return objESConnection.deleteScrollId(lstScrollId);
     }
 }

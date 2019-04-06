@@ -31,6 +31,10 @@ public class ESMappingFieldModel {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     String format;
 
+    @JsonProperty("path")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    String path;
+
     public String getType() {
         return type;
     }
@@ -85,5 +89,13 @@ public class ESMappingFieldModel {
 
     public void setFormat(String format) {
         this.format = format;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
     }
 }
