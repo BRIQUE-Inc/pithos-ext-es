@@ -1372,6 +1372,35 @@ public class ElasticFilter {
         return lstHit;
     }
 
+    public Long getTotalHit(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, Boolean bShouldRefresh) {
+        Long lTotalHit = 0L;
+        try {
+            if (objESClient != null && objCustomQueryBuilder != null) {
+                //Refresh index before export
+                if (bShouldRefresh) {
+                    objESConnection.refreshIndex(strIndex);
+                }
+
+                SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
+                objSearchSourceBuilder.query(objCustomQueryBuilder);
+
+                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                        .setSource(objSearchSourceBuilder)
+                        .setFrom(0)
+                        .setSize(0).get();
+
+                if (objSearchResponse != null && objSearchResponse.getHits() != null
+                        && objSearchResponse.getHits().getTotalHits() > 0) {
+                    lTotalHit = objSearchResponse.getHits().getTotalHits();
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lTotalHit;
+    }
+
     public List<SearchHit> getCustomMultipleQueryValue(String strIndex, String strType, List<QueryBuilder> lstCustomQueryBuilder, Integer intSize, Boolean bShouldRefresh, String[] arrReturnField) {
         List<SearchHit> lstHit = new ArrayList<>();
 

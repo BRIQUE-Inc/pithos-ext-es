@@ -669,6 +669,10 @@ public class ElasticService {
         return objESFilter.getCustomMultipleQueryValue(strIndex, strType, lstCustomQueryBuilder, intSize, bShouldRefresh, arrReturnField);
     }
 
+    public Long getTotalHit(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, Boolean bShouldRefresh) {
+        return objESFilter.getTotalHit(strIndex, strType, objCustomQueryBuilder, bShouldRefresh);
+    }
+
     public Boolean deleteScrollId(List<String> lstScrollId) {
         return objESConnection.deleteScrollId(lstScrollId);
     }
