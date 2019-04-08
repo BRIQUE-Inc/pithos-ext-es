@@ -1350,12 +1350,22 @@ public class ElasticFilter {
                 SearchSourceBuilder objSearchSourceBuilder = new SearchSourceBuilder();
                 objSearchSourceBuilder.query(objCustomQueryBuilder);
 
-                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                        .setSource(objSearchSourceBuilder)
-                        .addSort(objFieldSortBuilder)
-                        .setFetchSource(lstReturnedField, null)
-                        .setFrom(intFrom)
-                        .setSize(intSize).get();
+                SearchResponse objSearchResponse = null;
+
+                if (lstReturnedField != null && lstReturnedField.length > 0) {
+                    objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setFetchSource(lstReturnedField, null)
+                            .setFrom(intFrom)
+                            .setSize(intSize).get();
+                } else {
+                    objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(objFieldSortBuilder)
+                            .setFrom(intFrom)
+                            .setSize(intSize).get();
+                }
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null
                         && objSearchResponse.getHits().getTotalHits() > 0

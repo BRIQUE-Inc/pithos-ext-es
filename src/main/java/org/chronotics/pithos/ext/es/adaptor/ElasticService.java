@@ -677,3 +677,4 @@ public class ElasticService {
         return objESConnection.deleteScrollId(lstScrollId);
     }
 }
+

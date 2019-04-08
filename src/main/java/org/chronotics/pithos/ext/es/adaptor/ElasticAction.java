@@ -3456,7 +3456,7 @@ public class ElasticAction {
 
         try {
             if (lstFieldModel == null || lstFieldModel.size() <= 0) {
-                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false);
+                objESConnection.createIndex(strIndex, strType, lstData, strFieldDate, null, false, mapPredefinedDataType);
                 lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
             }
 
