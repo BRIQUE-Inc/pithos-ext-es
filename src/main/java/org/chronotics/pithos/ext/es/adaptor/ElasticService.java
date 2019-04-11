@@ -175,6 +175,16 @@ public class ElasticService {
     }
 
     /**
+     * Get list field of same pattern index
+     * @param lstIndex
+     * @param strType
+     * @return
+     */
+    public Map<String, List<String>> getFieldNamesOfIndices(List<String> lstIndex, String strType) {
+        return objESConnection.getFieldNamesOfIndices(lstIndex, strType);
+    }
+
+    /**
      * Merge date from multiple indices
      * @param objMergingRequest
      * @return

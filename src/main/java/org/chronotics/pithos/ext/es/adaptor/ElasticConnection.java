@@ -377,6 +377,59 @@ public class ElasticConnection {
         return mapFields;
     }
 
+    public Map<String, List<String>> getFieldNamesOfIndices(List<String> lstIndex, String strType) {
+        Map<String, List<String>> mapFields = new HashMap<>();
+
+        try {
+            String[] arrField = {"*"};
+            String[] arrType = {strType};
+
+            IndicesAdminClient objAdminClient = createESIndiceAdminClient();
+            GetFieldMappingsResponse objFieldMappingResponse = objAdminClient
+                    .prepareGetFieldMappings(lstIndex.toArray(new String[lstIndex.size()]))
+                    .setTypes(arrType).setFields(arrField).get();
+
+            if (objFieldMappingResponse != null && objFieldMappingResponse.mappings() != null
+                    && objFieldMappingResponse.mappings().size() > 0) {
+                for (Map.Entry<String, Map<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>>> curIndex : objFieldMappingResponse
+                        .mappings().entrySet()) {
+                    String strCurIndex = curIndex.getKey();
+                    List<String> lstField = new ArrayList<>();
+
+                    for (Map.Entry<String, Map<String, GetFieldMappingsResponse.FieldMappingMetaData>> curType : curIndex
+                            .getValue().entrySet()) {
+                        String strCurType = curType.getKey();
+
+                        if (strCurType.equals(strType)) {
+                            for (Map.Entry<String, GetFieldMappingsResponse.FieldMappingMetaData> curField : curType
+                                    .getValue().entrySet()) {
+                                if (!curField.getKey().contains(".keyword") && !curField.getKey().equals("_index")
+                                        && !curField.getKey().equals("_all") && !curField.getKey().equals("_parent")
+                                        && !curField.getKey().equals("_version") && !curField.getKey().equals("_routing")
+                                        && !curField.getKey().equals("_type") && !curField.getKey().equals("_seq_no")
+                                        && !curField.getKey().equals("_field_names") && !curField.getKey().equals("_source")
+                                        && !curField.getKey().equals("_id") && !curField.getKey().equals("_uid")
+                                        && !curField.getKey().equals("_ignored")) {
+                                    String strFullname = curField.getValue().fullName();
+                                    lstField.add(strFullname);
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+
+                    mapFields.put(strCurIndex, lstField);
+                }
+            }
+
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return mapFields;
+    }
+
     protected void closeESClient(TransportClient objESClient) {
         // try {
         // if (objESClient != null) {
@@ -1093,8 +1146,8 @@ public class ElasticConnection {
                             objLogger.info("createIndex: " + strIndex);
 
                             Settings.Builder objBuilder = Settings.builder()
-                                    .put("index.mapping.total_fields.limit", mapMappingField.size() * 10)
-                                    .put("index.mapping.nested_fields.limit", mapMappingField.size() * 10)
+                                    .put("index.mapping.total_fields.limit", mapMappingField.size() * 100)
+                                    .put("index.mapping.nested_fields.limit", mapMappingField.size() * 100)
                                     .put("index.max_result_window", 1000000000)
                                     .put("index.number_of_replicas", intNumReplica < 0 ? 0 : intNumReplica)
                                     .put("index.refresh_interval", "60s");
