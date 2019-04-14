@@ -40,6 +40,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 
+import javax.swing.text.StringContent;
 import java.io.File;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
@@ -1651,9 +1652,20 @@ public class ElasticAction {
         return bIsFinish;
     }
 
-    private void writeCSVHeader(FileWriter objFileWriter, List<String> lstHeader) throws Exception {
+    private void writeCSVHeader(FileWriter objFileWriter, List<String> lstHeader, Map<String, String> mapHeaderMapping) throws Exception {
         if (lstHeader != null && lstHeader.size() > 0) {
-            List<Object> lstObj = lstHeader.stream().collect(Collectors.toList());
+            List<String> lstMappingHeader = new ArrayList<>();
+
+            for (int intCount = 0; intCount < lstHeader.size(); intCount++) {
+                String strCurHeader = lstHeader.get(intCount);
+                if (mapHeaderMapping.containsKey(strCurHeader)) {
+                     lstMappingHeader.add(mapHeaderMapping.get(strCurHeader));
+                } else {
+                    lstMappingHeader.add(strCurHeader);
+                }
+            }
+
+            List<Object> lstObj = lstMappingHeader.stream().collect(Collectors.toList());
             CSVUtil.writeLine(objFileWriter, lstObj);
         }
     }
@@ -2060,7 +2072,8 @@ public class ElasticAction {
                                                            String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
                                                            List<String> lstPredefineHeader, HashMap<String, String> mapDateField,
                                                            ESFilterAllRequestModel objFilterAllRequest, String strFileName,
-                                                           Boolean bIsMultipleFile, Integer intMaxFileLine) {
+                                                           Boolean bIsMultipleFile, Integer intMaxFileLine,
+                                                           Map<String, String> mapHeaderMapping) {
         Boolean bIsExported = true;
         List<ESFileModel> lstReturnFile = new ArrayList<>();
         List<String> lstExportedFile = new ArrayList<>();
@@ -2213,6 +2226,20 @@ public class ElasticAction {
                             }
                         }
 
+                        List<String> lstOrderDetailHeader = new ArrayList<>();
+                        List<String> lstRemainDetainHeader = new ArrayList<>();
+
+                        for (int intCount = 0; intCount < lstPredefineHeader.size(); intCount++) {
+                            if (lstDetailHeader.contains(lstPredefineHeader.get(intCount))) {
+                                lstOrderDetailHeader.add(lstPredefineHeader.get(intCount));
+                            }
+                        }
+
+                        lstRemainDetainHeader = lstDetailHeader.stream().filter(curItem -> !lstOrderDetailHeader.contains(curItem)).collect(Collectors.toList());
+                        lstOrderDetailHeader.addAll(lstRemainDetainHeader);
+
+                        lstDetailHeader = lstOrderDetailHeader;
+
                         lstMergeHeader = new ArrayList<>(Arrays.asList(strDetailJoinField));
                         lstMergeHeader.addAll(lstMasterHeader);
                         lstMergeHeader.addAll(lstDetailHeader);
@@ -2241,7 +2268,7 @@ public class ElasticAction {
 
                                 if (bIsFirstWrite) {
                                     bIsFirstWrite = false;
-                                    writeCSVHeader(objFileWriter, lstMergeHeader);
+                                    writeCSVHeader(objFileWriter, lstMergeHeader, mapHeaderMapping);
                                 }
 
                                 if (bIsMultipleFile && intMaxFileLine > 0) {
@@ -2356,7 +2383,8 @@ public class ElasticAction {
                                                                                  ESFilterAllRequestModel objFilterMasterRequest,
                                                                                  ESFilterAllRequestModel objFilterDetailRequest,
                                                                                  String strFileName,
-                                                                                 Boolean bIsMultipleFile, Integer intMaxFileLine) {
+                                                                                 Boolean bIsMultipleFile, Integer intMaxFileLine,
+                                                                                 Map<String, String> mapHeaderMapping) {
         Boolean bIsExported = true;
         List<ESFileModel> lstReturnFile = new ArrayList<>();
         List<String> lstExportedFile = new ArrayList<>();
@@ -2412,7 +2440,15 @@ public class ElasticAction {
                 lstMasterHeader = lstFieldModel.stream().map(curItem -> curItem.getFull_name()).collect(Collectors.toList());
 
                 if (lstPredefineHeader != null && lstPredefineHeader.size() > 0) {
+                    List<String> lstOrderedHeader = new ArrayList<>();
                     lstMasterHeader = lstMasterHeader.stream().filter(curHeader -> lstPredefineHeader.contains(curHeader)).collect(Collectors.toList());
+
+                    for (int intCount = 0; intCount < lstPredefineHeader.size(); intCount++) {
+                        if (lstMasterHeader.contains(lstPredefineHeader.get(intCount))) {
+                            lstOrderedHeader.add(lstPredefineHeader.get(intCount));
+                        }
+                    }
+                    lstMasterHeader = lstOrderedHeader;
                 }
             }
 
@@ -2567,7 +2603,7 @@ public class ElasticAction {
 
                                 if (bIsFirstWrite) {
                                     bIsFirstWrite = false;
-                                    writeCSVHeader(objFileWriter, lstMergeHeader);
+                                    writeCSVHeader(objFileWriter, lstMergeHeader.stream().collect(Collectors.toList()), mapHeaderMapping);
                                 }
 
                                 if (bIsMultipleFile && intMaxFileLine > 0) {
@@ -2651,7 +2687,7 @@ public class ElasticAction {
                 }
             }
         } catch (Exception objEx) {
-            objLogger.debug("WARN: " + ExceptionUtil.getStackTrace(objEx));
+            objLogger.error(ExceptionUtil.getStackTrace(objEx));
         }
 
         Long lElapsedTime = Calendar.getInstance().getTimeInMillis() - objBegin.getTimeInMillis();

@@ -1396,7 +1396,6 @@ public class ElasticFilter {
 
                 SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
                         .setSource(objSearchSourceBuilder)
-                        .setFrom(0)
                         .setSize(0).get();
 
                 if (objSearchResponse != null && objSearchResponse.getHits() != null

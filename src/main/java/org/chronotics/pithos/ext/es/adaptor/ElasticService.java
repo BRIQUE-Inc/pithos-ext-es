@@ -385,9 +385,9 @@ public class ElasticService {
                                                            String strMasterJoinField, String strDetailJoinField, Integer intPageSize,
                                                            List<String> lstPredefineHeader, HashMap<String, String> mapDateField,
                                                            ESFilterAllRequestModel objFilterAllRequest, String strFileName,
-                                                           Boolean bIsMultipleFile, Integer intMaxFileLine) {
+                                                           Boolean bIsMultipleFile, Integer intMaxFileLine, Map<String, String> mapHeaderMapping) {
         return objESAction.exportESMasterDetailDataToCSV(strMasterIndex, strMasterType, strDetailIndex, strDetailType, strMasterJoinField, strDetailJoinField,
-                intPageSize, lstPredefineHeader, mapDateField, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine);
+                intPageSize, lstPredefineHeader, mapDateField, objFilterAllRequest, strFileName, bIsMultipleFile, intMaxFileLine, mapHeaderMapping);
     }
 
     public List<ESFileModel> exportESMasterDetailDataToCSVWithMasterDetailFilter(String strMasterIndex, String strMasterType,
@@ -397,12 +397,13 @@ public class ElasticService {
                                                                                  ESFilterAllRequestModel objFilterMasterRequest,
                                                                                  ESFilterAllRequestModel objFilterDetailRequest,
                                                                                  String strFileName,
-                                                                                 Boolean bIsMultipleFile, Integer intMaxFileLine) {
+                                                                                 Boolean bIsMultipleFile, Integer intMaxFileLine,
+                                                                                 Map<String, String> mapHeaderMapping) {
         return  objESAction.exportESMasterDetailDataToCSVWithMasterDetailFilter(strMasterIndex, strMasterType, strDetailIndex, strDetailType,
                 strMasterJoinField, strDetailJoinField,
                 intPageSize, lstPredefineHeader, mapDateField,
                 objFilterMasterRequest, objFilterDetailRequest,
-                strFileName, bIsMultipleFile, intMaxFileLine);
+                strFileName, bIsMultipleFile, intMaxFileLine, mapHeaderMapping);
     }
 
     /**
