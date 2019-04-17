@@ -315,7 +315,7 @@ public class ElasticFilter {
 
                     Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
 
-                    objLogger.info("lstSelectedField: " + lstSelectedField);
+                    //objLogger.info("lstSelectedField: " + lstSelectedField);
 
                     if (lstSelectedField == null || lstSelectedField.size() <= 0) {
                         if (intNumCol > 0) {

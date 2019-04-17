@@ -220,6 +220,10 @@ public class ESFilterConverterUtil {
             }
         }
 
+        if (strFieldName == null || strFieldName.isEmpty()) {
+            strFieldName = objESFilterRequest.getFiltered_on_field();
+        }
+
         return strFieldName;
     }
 }
