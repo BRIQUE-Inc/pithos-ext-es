@@ -276,12 +276,17 @@ public class ElasticFilter {
         SearchResponse objSearchResponse = new SearchResponse();
 
         try {
+            objLogger.debug("1-Refresh");
             if (bIsRefresh) {
                 objESConnection.refreshIndex(strIndex);
             }
 
+            objLogger.debug("2-getFieldsOfIndices");
+
             Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
                     Arrays.asList(strType), null, false);
+
+            objLogger.debug("2-getFieldsOfIndices-after");
 
             if ((mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex))
                     || (strIndex.contains("*"))) {
@@ -305,6 +310,8 @@ public class ElasticFilter {
                         lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
                     }
                 }
+
+                objLogger.debug("3-lstFieldModel");
 
                 if (lstFieldModel != null && lstFieldModel.size() > 0) {
                     List<String> lstSourceField = new ArrayList<>();
@@ -332,6 +339,8 @@ public class ElasticFilter {
                         lstSourceField = new ArrayList<>(lstSelectedField);
                     }
 
+                    objLogger.debug("4-lstSourceField");
+
                     if (lstSourceField != null && lstSourceField.size() > 0) {
                         if (objFilterAllRequest != null) {
                             objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
@@ -342,6 +351,8 @@ public class ElasticFilter {
                                     new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
                                     lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, new ArrayList<>(), lstSortingField);
                         }
+
+                        objLogger.debug("5-getResponseDataFromQuery");
 
                         lstSourceField.add("_id");
 
@@ -473,6 +484,8 @@ public class ElasticFilter {
                                                       List<ESSortingField> lstSortingField) {
         SearchResponse objSearchResponse = new SearchResponse();
 
+        objLogger.debug("51-getResponseDataFromQuery");
+
         try {
             SearchRequestBuilder objRequestBuilder = objESClient.prepareSearch(arrIndex).setTypes(arrType)
                     .setSearchType(SearchType.DFS_QUERY_THEN_FETCH);
@@ -513,9 +526,12 @@ public class ElasticFilter {
                 }
             }
 
+            objLogger.debug("52-objSearchSourceBuilder");
+
             if (arrSource != null && arrSource.length > 0) {
                 objSearchSourceBuilder.fetchSource(arrSource, null);
             }
+            objLogger.debug("53-fetchSource");
 
             objRequestBuilder.setSource(objSearchSourceBuilder);
             objSearchResponse = objRequestBuilder.get();

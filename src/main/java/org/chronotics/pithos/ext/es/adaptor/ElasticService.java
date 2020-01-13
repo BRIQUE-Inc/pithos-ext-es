@@ -17,6 +17,7 @@ public class ElasticService {
 
     ElasticConnection objESConnection;
     ElasticFilter objESFilter;
+    ElasticFilterIndexArray objESFilterIndexArray;
     ElasticAction objESAction;
     ElasticCluster objESCluster;
 
@@ -27,6 +28,7 @@ public class ElasticService {
         this.objESFilter = new ElasticFilter(this.objESConnection);
         this.objESAction = new ElasticAction(this.objESConnection, this.objESFilter, intNumBulkAction);
         this.objESCluster = new ElasticCluster(this.objESConnection);
+        this.objESFilterIndexArray = new ElasticFilterIndexArray(this.objESConnection);
     }
 
     public ElasticService(String strESClusterName, String strListESCoorNodeConnectionString, String strTransportUsername, String strTransportPassword) {
@@ -34,6 +36,7 @@ public class ElasticService {
         this.objESFilter = new ElasticFilter(this.objESConnection);
         this.objESAction = new ElasticAction(this.objESConnection, this.objESFilter, intNumBulkAction);
         this.objESCluster = new ElasticCluster(this.objESConnection);
+        this.objESFilterIndexArray = new ElasticFilterIndexArray(this.objESConnection);
     }
 
     public static ElasticService getInstance(String strESClusterName, String strESCoorNodeIP,
@@ -120,6 +123,10 @@ public class ElasticService {
         return objESConnection.checkIndexExisted(strIndex, strType);
     }
 
+    public List<String> checkIndexArrayExisted(List<String> lstIndex) {
+        return objESConnection.checkIndexArrayExisted(lstIndex);
+    }
+
     /**
      * Update Settings of Index
      * @param strIndex
@@ -172,6 +179,10 @@ public class ElasticService {
      */
     public List<ESFieldModel> getFieldsMetaData(String strIndex, String strType, List<String> lstField, Boolean bIsCheckNull) {
         return objESConnection.getFieldsMetaData(strIndex, strType, lstField, bIsCheckNull);
+    }
+
+    public List<ESFieldModel> getFieldsMetaDataIndexArray(List<String> lstIndex, String strType, List<String> lstField, Boolean bIsCheckNull) {
+        return objESConnection.getFieldsMetaDataIndexArray(lstIndex, strType, lstField, bIsCheckNull);
     }
 
     /**
@@ -247,6 +258,12 @@ public class ElasticService {
                                                                    List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
                                                                    Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField) {
         return objESFilter.searchDataWithFieldIdxAndRowIdx(strIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, lstSortingField);
+    }
+
+    public HashMap<String, Object> searchDataOfIndexArrayWithFieldIdxAndRowIdx(List<String> lstIndex, String strType, String strQuery,
+                                                                   List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
+                                                                   Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField, Boolean bIsRefresh) {
+        return objESFilterIndexArray.searchDataWithFieldIdxAndRowIdx(lstIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, lstSortingField, bIsRefresh);
     }
 
     /**
@@ -639,6 +656,10 @@ public class ElasticService {
         return objESFilter.getCustomAggregationValue(strIndex, strType, objCustomQueryBuilder, lstCustomAggregationBuilder);
     }
 
+    public SearchResponse getCustomAggregationValue(List<String> lstIndex, String strType, QueryBuilder objCustomQueryBuilder, List<AggregationBuilder> lstCustomAggregationBuilder) {
+        return objESFilterIndexArray.getCustomAggregationValue(lstIndex, strType, objCustomQueryBuilder, lstCustomAggregationBuilder);
+    }
+
     /**
      * Get hits from custom query
      * @param strIndex
@@ -662,6 +683,10 @@ public class ElasticService {
      */
     public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize) {
         return objESFilter.getCustomQueryValue(strIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize, false);
+    }
+
+    public List<SearchHit> getCustomQueryValueIndexArray(List<String> lstIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize, Boolean bShouldRefresh) {
+        return objESFilterIndexArray.getCustomQueryValue(lstIndex, strType, objCustomQueryBuilder, objFieldSortBuilder, intSize, bShouldRefresh);
     }
 
     public List<SearchHit> getCustomQueryValue(String strIndex, String strType, QueryBuilder objCustomQueryBuilder, FieldSortBuilder objFieldSortBuilder, Integer intSize, Boolean bShouldRefresh) {

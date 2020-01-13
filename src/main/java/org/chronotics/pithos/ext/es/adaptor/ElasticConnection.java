@@ -47,7 +47,6 @@ import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
 
 import java.net.InetAddress;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class ElasticConnection {
@@ -842,6 +841,26 @@ public class ElasticConnection {
         return bIsExisted;
     }
 
+    public List<String> checkIndexArrayExisted(List<String> lstIndex) {
+        List<String> lstExistedIndex = new ArrayList<>();
+
+        try {
+            if (objESClient != null) {
+                for (int intCount = 0; intCount < lstIndex.size(); intCount++) {
+                    IndicesExistsResponse objResponse = objESClient.admin().indices().exists(new IndicesExistsRequest().indices(lstIndex.get(intCount))).get();
+
+                    if (objResponse != null && objResponse.isExists()) {
+                        lstExistedIndex.add(lstIndex.get(intCount));
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lstExistedIndex;
+    }
+
     public Boolean checkIndexAndTypeExisted(String strIndex, String strType) {
         Boolean bIsExisted = false;
 
@@ -1150,7 +1169,7 @@ public class ElasticConnection {
                                     .put("index.mapping.nested_fields.limit", mapMappingField.size() * 100)
                                     .put("index.max_result_window", 1000000000)
                                     .put("index.number_of_replicas", intNumReplica < 0 ? 0 : intNumReplica)
-                                    .put("index.refresh_interval", "60s");
+                                    .put("index.refresh_interval", "300s");
 
                             if (bIsUseHotWarm) {
                                 objBuilder.put("index.routing.allocation.require.box_type", "hot");
@@ -1315,6 +1334,38 @@ public class ElasticConnection {
         return lstReturnField;
     }
 
+    public List<ESFieldModel> getFieldsMetaDataIndexArray(List<String> lstIndex, String strType, List<String> lstField, Boolean bIsCheckNull) {
+        List<ESFieldModel> lstReturnField = new ArrayList<>();
+
+        try {
+            List<String> lstExistedIndex = checkIndexArrayExisted(lstIndex);
+
+            Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = getFieldsOfIndices(lstExistedIndex,
+                    Arrays.asList(strType), lstField, bIsCheckNull);
+
+            if (mapFieldOfIndex != null && mapFieldOfIndex.size() > 0) {
+                for (int intCount = 0; intCount < lstExistedIndex.size(); intCount++) {
+                    String strIndex = lstExistedIndex.get(intCount);
+
+                    if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
+                            && mapFieldOfIndex.get(strIndex).containsKey(strType)) {
+                        lstReturnField.addAll(mapFieldOfIndex.get(strIndex).get(strType));
+                    }
+                }
+
+                if (lstReturnField != null && lstReturnField.size() > 0) {
+                    if (lstReturnField != null && lstReturnField.size() > 0) {
+                        lstReturnField = lstReturnField.stream().filter(ESConverterUtil.distinctByKey(ESFieldModel::getFull_name)).distinct().collect(Collectors.toList());
+                    }
+                }
+            }
+        } catch (Exception objEx) {
+            objLogger.debug(ExceptionUtil.getStackTrace(objEx));
+        }
+
+        return lstReturnField;
+    }
+
     public Boolean mergeDataFromIndices(MergingDataRequestModel objMergingRequest) {
         Boolean bIsMerged = false;
 
@@ -1344,13 +1395,24 @@ public class ElasticConnection {
     }
 
     protected void refreshIndex(String strIndex) {
-        try {
-            if (objESClient != null) {
-                objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
-            }
-        } catch (Exception objEx) {
-            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
-        }
+//        try {
+//            if (objESClient != null) {
+//                objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
+//            }
+//        } catch (Exception objEx) {
+//            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
+//        }
+    }
+
+    protected void refreshIndexArray(List<String> lstIndex) {
+//        try {
+//            if (objESClient != null) {
+//                String[] arrIndex = lstIndex.toArray(new String[lstIndex.size()]);
+//                objESClient.admin().indices().refresh(new RefreshRequest(arrIndex)).get();
+//            }
+//        } catch (Exception objEx) {
+//            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
+//        }
     }
 
     public Boolean deleteScrollId(List<String> lstScrollId) {
