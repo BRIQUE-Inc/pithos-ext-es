@@ -26,6 +26,7 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
@@ -921,6 +922,18 @@ public class ElasticConnection {
         }
 
         return bIsUpdated;
+    }
+
+    public synchronized Boolean verifyConnection() {
+        Boolean isNormalConnection = false;
+
+        List<DiscoveryNode> connectedNodes = objESClient.connectedNodes();
+
+        if (connectedNodes.isEmpty()) {
+            isNormalConnection = false;
+        }
+
+        return isNormalConnection;
     }
 
     public synchronized Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,

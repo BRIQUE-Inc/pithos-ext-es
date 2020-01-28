@@ -9,11 +9,11 @@
     <version>1.4-SNAPSHOT</version>
 
     <repositories>
-        <repository>
+        <!--<repository>
             <id>brique-server</id>
             <name>Brique Repositories</name>
             <url>http://115.144.55.48:8081/nexus/content/groups/brique/</url>
-        </repository>
+        </repository>-->
         <repository>
             <id>elasticsearch-releases</id>
             <url>https://artifacts.elastic.co/maven</url>
