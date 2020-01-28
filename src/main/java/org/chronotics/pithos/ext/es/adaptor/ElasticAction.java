@@ -68,7 +68,7 @@ public class ElasticAction {
         this.objESConnection = objESConnection;
         this.objESClient = objESConnection.objESClient;
         this.objESFilter = objESFilter;
-        this.intNumBulkOperation = 20000;
+        this.intNumBulkOperation = intNumBulkOperation;
     }
 
     public Map<String, List<ESPrepActionTypeModel>> getPrepActionTypes() {
@@ -456,7 +456,7 @@ public class ElasticAction {
             }
         }).setBulkActions(intDataSize < intNumBulkOperation ? intDataSize : intNumBulkOperation)
                 .setConcurrentRequests(intNumOfThread)
-                .setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), lScrollTTL.intValue()))
+                //.setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), lScrollTTL.intValue()))
                 .build();
 
         return objBulkProcessor;

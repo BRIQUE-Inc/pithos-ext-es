@@ -61,7 +61,6 @@ public class ElasticConnection {
     String strTransportUsername = "";
     String strTransportPassword = "";
     Integer intESCoorNodePort = 0;
-    Integer intNumBulkOperation = 20000;
     Long lWaitNoNode = 20000L;
     TransportClient objESClient;
     List<String> lstConvertedDataType = new ArrayList<>();

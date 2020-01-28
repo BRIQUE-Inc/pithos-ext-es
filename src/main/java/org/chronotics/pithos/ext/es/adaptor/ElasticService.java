@@ -31,7 +31,8 @@ public class ElasticService {
         this.objESFilterIndexArray = new ElasticFilterIndexArray(this.objESConnection);
     }
 
-    public ElasticService(String strESClusterName, String strListESCoorNodeConnectionString, String strTransportUsername, String strTransportPassword) {
+    public ElasticService(String strESClusterName, String strListESCoorNodeConnectionString, String strTransportUsername, String strTransportPassword, Integer intNumBulkAction) {
+        this.intNumBulkAction = intNumBulkAction;
         this.objESConnection = ElasticConnection.getInstance(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword);
         this.objESFilter = new ElasticFilter(this.objESConnection);
         this.objESAction = new ElasticAction(this.objESConnection, this.objESFilter, intNumBulkAction);
@@ -66,11 +67,12 @@ public class ElasticService {
     }
 
     public static ElasticService getInstance(String strESClusterName, String strListESCoorNodeConnectionString,
-                                             String strTransportUsername, String strTransportPassword) {
+                                             String strTransportUsername, String strTransportPassword,
+                                             Integer intNumBulkAction) {
         if (instance == null) {
             synchronized (ElasticConnection.class) {
                 if (instance == null) {
-                    instance = new ElasticService(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword);
+                    instance = new ElasticService(strESClusterName, strListESCoorNodeConnectionString, strTransportUsername, strTransportPassword, intNumBulkAction);
                 }
             }
         }
