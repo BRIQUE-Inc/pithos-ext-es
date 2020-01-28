@@ -15,6 +15,7 @@ import org.chronotics.pithos.ext.es.util.ESPithosConstant;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsResponse;
+import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -27,6 +28,7 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -447,12 +449,14 @@ public class ElasticAction {
 
             @Override
             public void afterBulk(long l, BulkRequest bulkRequest, Throwable throwable) {
-                objLogger.debug("ERR: After Bulk with Throwable - " + String.valueOf(l) + " - "
-                        + bulkRequest.numberOfActions());
-                objLogger.warn("ERR: " + ExceptionUtil.getStackTrace(throwable));
+                objLogger.warn("ERR: After Bulk with Throwable - " + l + " - "
+                        + bulkRequest.numberOfActions() + " - " + throwable.getMessage());
+
+                objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(throwable));
             }
         }).setBulkActions(intDataSize < intNumBulkOperation ? intDataSize : intNumBulkOperation)
                 .setConcurrentRequests(intNumOfThread)
+                .setBackoffPolicy(BackoffPolicy.exponentialBackoff(TimeValue.timeValueSeconds(1L), lScrollTTL.intValue()))
                 .build();
 
         return objBulkProcessor;
@@ -3097,10 +3101,7 @@ public class ElasticAction {
         Boolean bIsUpdated = false;
 
         try {
-            if (objESClient != null) {
-                //Refresh index before update
-                objESConnection.refreshIndex(strIndex);
-
+            if (objESClient != null && objESConnection.verifyConnection()) {
                 List<ESFieldModel> lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
 
                 List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
@@ -3128,46 +3129,50 @@ public class ElasticAction {
                     }
                 }
 
-                SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
-                        .setSource(objSearchSourceBuilder)
-                        .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
-                        .setSize(intPageSize).get();
+                if (objESConnection.verifyConnection()) {
+                    SearchResponse objSearchResponse = objESClient.prepareSearch(strIndex).setTypes(strType)
+                            .setSource(objSearchSourceBuilder)
+                            .addSort(FieldSortBuilder.DOC_FIELD_NAME, SortOrder.ASC).setScroll(new TimeValue(lScrollTTL))
+                            .setSize(intPageSize).get();
 
-                ObjectMapper objCurrentMapper = new ObjectMapper();
-                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-                objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+                    ObjectMapper objCurrentMapper = new ObjectMapper();
+                    objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                    objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
 
-                do {
-                    if (objSearchResponse != null && objSearchResponse.getHits() != null
-                            && objSearchResponse.getHits().getTotalHits() > 0
-                            && objSearchResponse.getHits().getHits() != null
-                            && objSearchResponse.getHits().getHits().length > 0) {
-                        BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
+                    do {
+                        if (objSearchResponse != null && objSearchResponse.getHits() != null
+                                && objSearchResponse.getHits().getTotalHits() > 0
+                                && objSearchResponse.getHits().getHits() != null
+                                && objSearchResponse.getHits().getHits().length > 0) {
+                            BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, intPageSize);
 
-                        List<SearchHit> lstData = new ArrayList<SearchHit>();
-                        lstData = Arrays.asList(objSearchResponse.getHits().getHits());
+                            List<SearchHit> lstData = new ArrayList<SearchHit>();
+                            lstData = Arrays.asList(objSearchResponse.getHits().getHits());
 
-                        for (int intCount = 0; intCount < lstData.size(); intCount++) {
-                            String strHitID = lstData.get(intCount).getId();
-                            String strCurIndex = lstData.get(intCount).getIndex();
-                            String strCurType = lstData.get(intCount).getType();
+                            for (int intCount = 0; intCount < lstData.size(); intCount++) {
+                                String strHitID = lstData.get(intCount).getId();
+                                String strCurIndex = lstData.get(intCount).getIndex();
+                                String strCurType = lstData.get(intCount).getType();
 
-                            objBulkProcessor.add(new DeleteRequest(strCurIndex, strCurType, strHitID));
+                                objBulkProcessor.add(new DeleteRequest(strCurIndex, strCurType, strHitID));
+                            }
+
+                            objBulkProcessor.flush();
+                            objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
+
+                            if (objESConnection.verifyConnection()) {
+                                objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
+                                        .setScroll(new TimeValue(lScrollTTL)).get();
+                            }
+                        } else {
+                            break;
                         }
+                    } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
+                            && objSearchResponse.getHits().getHits() != null
+                            && objSearchResponse.getHits().getHits().length > 0);
 
-                        objBulkProcessor.flush();
-                        objBulkProcessor.awaitClose(10, TimeUnit.MINUTES);
-
-                        objSearchResponse = objESClient.prepareSearchScroll(objSearchResponse.getScrollId())
-                                .setScroll(new TimeValue(lScrollTTL)).get();
-                    } else {
-                        break;
-                    }
-                } while (objSearchResponse.getHits() != null && objSearchResponse.getHits().getTotalHits() > 0
-                        && objSearchResponse.getHits().getHits() != null
-                        && objSearchResponse.getHits().getHits().length > 0);
-
-                bIsUpdated = true;
+                    bIsUpdated = true;
+                }
             }
         } catch (Exception objEx) {
             bIsUpdated = false;
@@ -3342,7 +3347,8 @@ public class ElasticAction {
         Boolean bIsUpdated = false;
 
         try {
-            if (objESConnection != null && lstData != null && lstData.size() > 0 && strIDField != null && !strIDField.isEmpty()) {
+            if (objESConnection != null && objESConnection.verifyConnection()
+                    && lstData != null && lstData.size() > 0 && strIDField != null && !strIDField.isEmpty()) {
                 ObjectMapper objCurrentMapper = new ObjectMapper();
                 BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, lstData.size());
 
@@ -3393,7 +3399,8 @@ public class ElasticAction {
         Boolean bIsInserted = false;
 
         try {
-            if (objESClient != null && strIDField != null && !strIDField.isEmpty()) {
+            if (objESClient != null && strIDField != null && !strIDField.isEmpty()
+                && objESConnection.verifyConnection()) {
                 ObjectMapper objCurrentMapper = new ObjectMapper();
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
@@ -3558,7 +3565,7 @@ public class ElasticAction {
                 lstFieldModel = objESConnection.getFieldsMetaData(strIndex, strType, null, false);
             }
 
-            if (objESClient != null) {
+            if (objESClient != null && objESConnection.verifyConnection()) {
                 ObjectMapper objCurrentMapper = new ObjectMapper();
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
@@ -3613,7 +3620,7 @@ public class ElasticAction {
 
                 BulkProcessor objBulkProcessor = createBulkProcessor(objESClient, lstData.size());
 
-                if (objBulkProcessor != null) {
+                if (objBulkProcessor != null && objESConnection.verifyConnection()) {
                     for (int intCount = 0; intCount < lstData.size(); intCount++) {
                         Object objData = lstData.get(intCount);
 

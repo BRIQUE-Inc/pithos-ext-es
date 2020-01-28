@@ -137,6 +137,10 @@ public class ElasticService {
         return objESConnection.updateSettingsOfIndex(strIndex, mapUpdateSetting);
     }
 
+    public Integer refreshIndices(List<String> lstIndex) {
+        return objESConnection.refreshIndices(lstIndex);
+    }
+
     /**
      * Delete index
      * @param strIndex

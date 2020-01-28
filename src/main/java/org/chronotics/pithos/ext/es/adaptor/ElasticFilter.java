@@ -9,6 +9,7 @@ import org.chronotics.pithos.ext.es.util.ESConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterConverterUtil;
 import org.chronotics.pithos.ext.es.util.ESFilterOperationConstant;
 import org.elasticsearch.action.search.*;
+import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.*;
@@ -45,6 +46,7 @@ public class ElasticFilter {
     ObjectMapper objMapper = new ObjectMapper();
 
     Long lScrollTTL = 600000L;
+    Long lWaitNoNode = 20000L;
 
     public ElasticFilter(ElasticConnection objESConnection) {
         this.objESConnection = objESConnection;
@@ -283,97 +285,110 @@ public class ElasticFilter {
 
             objLogger.debug("2-getFieldsOfIndices");
 
-            Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
-                    Arrays.asList(strType), null, false);
+            if (objESConnection.verifyConnection()) {
+                Map<String, Map<String, List<ESFieldModel>>> mapFieldOfIndex = objESConnection.getFieldsOfIndices(Arrays.asList(strIndex),
+                        Arrays.asList(strType), null, false);
 
-            objLogger.debug("2-getFieldsOfIndices-after");
+                objLogger.debug("2-getFieldsOfIndices-after");
 
-            if ((mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex))
-                    || (strIndex.contains("*"))) {
-                List<ESFieldModel> lstFieldModel = new ArrayList<>();
+                if ((mapFieldOfIndex != null && mapFieldOfIndex.size() > 0 && mapFieldOfIndex.containsKey(strIndex))
+                        || (strIndex.contains("*"))) {
+                    List<ESFieldModel> lstFieldModel = new ArrayList<>();
 
-                if (strIndex.contains("*")) {
-                    String strIndexPattern = strIndex.replace("*", "");
+                    if (strIndex.contains("*")) {
+                        String strIndexPattern = strIndex.replace("*", "");
 
-                    for (Map.Entry<String, Map<String, List<ESFieldModel>>> curEntry : mapFieldOfIndex.entrySet()) {
-                        if (curEntry.getKey().contains(strIndexPattern)) {
-                            lstFieldModel.addAll(curEntry.getValue().get(strType));
+                        for (Map.Entry<String, Map<String, List<ESFieldModel>>> curEntry : mapFieldOfIndex.entrySet()) {
+                            if (curEntry.getKey().contains(strIndexPattern)) {
+                                lstFieldModel.addAll(curEntry.getValue().get(strType));
+                            }
                         }
-                    }
 
-                    if (lstFieldModel != null && lstFieldModel.size() > 0) {
-                        lstFieldModel = lstFieldModel.stream().filter(ESConverterUtil.distinctByKey(ESFieldModel::getFull_name)).distinct().collect(Collectors.toList());
-                    }
-                } else {
-                    if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
-                            && mapFieldOfIndex.get(strIndex).containsKey(strType)) {
-                        lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
-                    }
-                }
-
-                objLogger.debug("3-lstFieldModel");
-
-                if (lstFieldModel != null && lstFieldModel.size() > 0) {
-                    List<String> lstSourceField = new ArrayList<>();
-                    List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
-                            && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
-                            ? objFilterAllRequest.getFilters()
-                            : new ArrayList<ESFilterRequestModel>();
-
-                    Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
-
-                    //objLogger.info("lstSelectedField: " + lstSelectedField);
-
-                    if (lstSelectedField == null || lstSelectedField.size() <= 0) {
-                        if (intNumCol > 0) {
-                            lstSourceField = lstFieldModel
-                                    .subList(intFromCol,
-                                            (intFromCol + intNumCol) > lstFieldModel.size() ? lstFieldModel.size()
-                                                    : (intFromCol + intNumCol))
-                                    .stream().map(objField -> objField.getFull_name()).collect(Collectors.toList());
-                        } else {
-                            lstSourceField = lstFieldModel.stream().map(objField -> objField.getFull_name())
-                                    .collect(Collectors.toList());
+                        if (lstFieldModel != null && lstFieldModel.size() > 0) {
+                            lstFieldModel = lstFieldModel.stream().filter(ESConverterUtil.distinctByKey(ESFieldModel::getFull_name)).distinct().collect(Collectors.toList());
                         }
                     } else {
-                        lstSourceField = new ArrayList<>(lstSelectedField);
+                        if (mapFieldOfIndex.get(strIndex) != null && mapFieldOfIndex.get(strIndex).size() > 0
+                                && mapFieldOfIndex.get(strIndex).containsKey(strType)) {
+                            lstFieldModel = mapFieldOfIndex.get(strIndex).get(strType);
+                        }
                     }
 
-                    objLogger.debug("4-lstSourceField");
+                    objLogger.debug("3-lstFieldModel");
 
-                    if (lstSourceField != null && lstSourceField.size() > 0) {
-                        if (objFilterAllRequest != null) {
-                            objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
-                                    new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows(), lstSortingField);
+                    if (lstFieldModel != null && lstFieldModel.size() > 0) {
+                        List<String> lstSourceField = new ArrayList<>();
+                        List<ESFilterRequestModel> lstFilters = (objFilterAllRequest != null
+                                && objFilterAllRequest.getFilters() != null && objFilterAllRequest.getFilters().size() > 0)
+                                ? objFilterAllRequest.getFilters()
+                                : new ArrayList<ESFilterRequestModel>();
+
+                        Boolean bIsReversedFilter = (objFilterAllRequest != null && objFilterAllRequest.getIs_reversed() != null) ? objFilterAllRequest.getIs_reversed() : false;
+
+                        //objLogger.info("lstSelectedField: " + lstSelectedField);
+
+                        if (lstSelectedField == null || lstSelectedField.size() <= 0) {
+                            if (intNumCol > 0) {
+                                lstSourceField = lstFieldModel
+                                        .subList(intFromCol,
+                                                (intFromCol + intNumCol) > lstFieldModel.size() ? lstFieldModel.size()
+                                                        : (intFromCol + intNumCol))
+                                        .stream().map(objField -> objField.getFull_name()).collect(Collectors.toList());
+                            } else {
+                                lstSourceField = lstFieldModel.stream().map(objField -> objField.getFull_name())
+                                        .collect(Collectors.toList());
+                            }
                         } else {
-                            objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
-                                    new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
-                                    lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, new ArrayList<>(), lstSortingField);
+                            lstSourceField = new ArrayList<>(lstSelectedField);
                         }
 
-                        objLogger.debug("5-getResponseDataFromQuery");
+                        objLogger.debug("4-lstSourceField");
 
-                        lstSourceField.add("_id");
+                        if (lstSourceField != null && lstSourceField.size() > 0) {
+                            if (objFilterAllRequest != null) {
+                                objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
+                                        new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
+                                        lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, objFilterAllRequest.getDeleted_rows(), lstSortingField);
+                            } else {
+                                objSearchResponse = getResponseDataFromQuery(new String[]{strIndex},
+                                        new String[]{strType}, lstSourceField.toArray(new String[lstSourceField.size()]),
+                                        lstFilters, bIsReversedFilter, intFromRow, intNumRow, lstFieldModel, new ArrayList<>(), lstSortingField);
+                            }
 
-                        objQueryResult.setSearch_response(objSearchResponse);
-                        objQueryResult.setTotal_fields(lstFieldModel.size() + 1);
-                        objQueryResult.setNum_selected_fields(lstSourceField.size());
-                        objQueryResult.setSelected_fields(lstSourceField);
+                            objLogger.debug("5-getResponseDataFromQuery");
 
-                        if (intStatsType != 0) {
-                            Boolean bIsSimpleStats = intStatsType == 1 ? true : false;
+                            lstSourceField.add("_id");
 
-                            if ((objFilterAllRequest == null || objFilterAllRequest.getFilters() == null
-                                    || objFilterAllRequest.getFilters().size() <= 0) && intFromRow == 0) {
-                                List<ESFieldAggModel> lstFieldAggs = getHistogramOfField(strIndex, strType, lstSourceField,
-                                        bIsSimpleStats);
-                                objQueryResult.setAgg_fields(lstFieldAggs);
+                            objQueryResult.setSearch_response(objSearchResponse);
+                            objQueryResult.setTotal_fields(lstFieldModel.size() + 1);
+                            objQueryResult.setNum_selected_fields(lstSourceField.size());
+                            objQueryResult.setSelected_fields(lstSourceField);
+
+                            if (intStatsType != 0) {
+                                Boolean bIsSimpleStats = intStatsType == 1 ? true : false;
+
+                                if ((objFilterAllRequest == null || objFilterAllRequest.getFilters() == null
+                                        || objFilterAllRequest.getFilters().size() <= 0) && intFromRow == 0) {
+                                    List<ESFieldAggModel> lstFieldAggs = getHistogramOfField(strIndex, strType, lstSourceField,
+                                            bIsSimpleStats);
+                                    objQueryResult.setAgg_fields(lstFieldAggs);
+                                }
                             }
                         }
                     }
                 }
             }
+        } catch (NoNodeAvailableException objEx) {
+            try {
+                Thread.sleep(lWaitNoNode);
+            } catch (Exception ex) {
+            }
+
+            objQueryResult = getResponseDataFromQueryByFieldIdxAndRowIdx(strIndex, strType,
+                    objFilterAllRequest, lstSelectedField,
+                    intFromRow, intNumRow,
+                    intFromCol, intNumCol,
+                    intStatsType, lstSortingField, bIsRefresh);
         } catch (Exception objEx) {
             objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
@@ -534,7 +549,21 @@ public class ElasticFilter {
             objLogger.debug("53-fetchSource");
 
             objRequestBuilder.setSource(objSearchSourceBuilder);
-            objSearchResponse = objRequestBuilder.get();
+
+            if (objESConnection.verifyConnection()) {
+                objSearchResponse = objRequestBuilder.get();
+            }
+        } catch (NoNodeAvailableException objEx) {
+            try {
+                Thread.sleep(lWaitNoNode);
+            } catch (Exception ex) {
+            }
+
+            objSearchResponse = getResponseDataFromQuery(arrIndex, arrType, arrSource,
+                    lstFilterRequest, bIsReversedFilter,
+                    intFrom, intSize,
+                    lstFieldModel, lstDeletedRows,
+                    lstSortingField);
         } catch (Exception objEx) {
             objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }

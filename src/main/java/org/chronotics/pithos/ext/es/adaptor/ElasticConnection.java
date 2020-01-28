@@ -9,6 +9,8 @@ import org.chronotics.pandora.java.serialization.JacksonFilter;
 import org.chronotics.pithos.ext.es.util.ESPithosConstant;
 import org.chronotics.pithos.ext.es.model.*;
 import org.chronotics.pithos.ext.es.util.*;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
@@ -25,7 +27,9 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -58,6 +62,7 @@ public class ElasticConnection {
     String strTransportPassword = "";
     Integer intESCoorNodePort = 0;
     Integer intNumBulkOperation = 20000;
+    Long lWaitNoNode = 20000L;
     TransportClient objESClient;
     List<String> lstConvertedDataType = new ArrayList<>();
 
@@ -927,10 +932,24 @@ public class ElasticConnection {
     public synchronized Boolean verifyConnection() {
         Boolean isNormalConnection = false;
 
-        List<DiscoveryNode> connectedNodes = objESClient.connectedNodes();
+        try {
+            ClusterHealthResponse objHeathResponse = objESClient.admin().cluster().health(new ClusterHealthRequest()).get();
 
-        if (connectedNodes.isEmpty()) {
-            isNormalConnection = false;
+            if (objHeathResponse != null && !objHeathResponse.isTimedOut()) {
+                isNormalConnection = true;
+            } else {
+                Thread.sleep(1000);
+                isNormalConnection = verifyConnection();
+            }
+        } catch (NoNodeAvailableException objEx) {
+            try {
+                Thread.sleep(1000);
+            } catch (Exception ex) {
+            }
+
+            isNormalConnection = verifyConnection();
+        } catch (Exception objEx) {
+            objLogger.error(ExceptionUtil.getStackTrace(objEx));
         }
 
         return isNormalConnection;
@@ -1196,17 +1215,21 @@ public class ElasticConnection {
                                 objBuilder.put("index.codec", strCompressionLevel);
                             }
 
-                            objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
-                                    .setSettings(objBuilder)
-                                    .addMapping(strType, strJSONMappingData, XContentType.JSON)
-                                    .get();
+                            if (verifyConnection()) {
+                                objCreateIndexResponse = objESClient.admin().indices().prepareCreate(strIndex)
+                                        .setSettings(objBuilder)
+                                        .addMapping(strType, strJSONMappingData, XContentType.JSON)
+                                        .get();
+                            }
+
 
                             objLogger.info("objCreateIndexResponse: " + objCreateIndexResponse);
                         } else {
                             bIsCreated = true;
                         }
 
-                        if ((objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())) {
+                        if ((objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())
+                            && verifyConnection()) {
                             AcknowledgedResponse objPutMappingResponse = objESClient.admin().indices()
                                     .preparePutMapping(strIndex).setType(strType)
                                     .setSource(strJSONMappingData, XContentType.JSON).get();
@@ -1226,6 +1249,14 @@ public class ElasticConnection {
                     }
                 }
             }
+        } catch (NoNodeAvailableException objEx) {
+            try {
+                Thread.sleep(lWaitNoNode);
+            } catch (Exception ex) {
+            }
+
+            bIsCreated = createIndex(strIndex, strType, lstData, strDateField,
+                    mapMappingField, bDelIndexIfExisted, mapFieldDataType);
         } catch (Exception objEx) {
             objLogger.error(ExceptionUtil.getStackTrace(objEx));
         }
@@ -1293,6 +1324,8 @@ public class ElasticConnection {
                     .get();
 
             if (objMappingResponse != null && objMappingResponse.getMappings() != null) {
+                List<ESIndexModel> lstTemp = new ArrayList<>();
+
                 objMappingResponse.getMappings().forEach(curObject -> {
                     String strCurIndex = curObject.key;
                     List<String> lstCurType = new ArrayList<>();
@@ -1305,11 +1338,20 @@ public class ElasticConnection {
                     objIndex.setIndex_name(strCurIndex);
                     objIndex.setIndex_types(lstCurType);
 
-                    lstIndices.add(objIndex);
+                    lstTemp.add(objIndex);
                 });
+
+                lstIndices = lstTemp;
             }
 
             closeESClient(objESClient);
+        } catch (NoNodeAvailableException objEx) {
+          try {
+              Thread.sleep(lWaitNoNode);
+          } catch (Exception ex) {
+          }
+
+          lstIndices = getAllIndices();
         } catch (Exception objEx) {
             objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
@@ -1340,6 +1382,13 @@ public class ElasticConnection {
                     lstReturnField = lstReturnField.stream().filter(ESConverterUtil.distinctByKey(ESFieldModel::getFull_name)).collect(Collectors.toList());
                 }
             }
+        } catch (NoNodeAvailableException objEx) {
+            try {
+                Thread.sleep(lWaitNoNode);
+            } catch (Exception ex) {
+            }
+
+            lstReturnField = getFieldsMetaData(strIndex, strType, lstField, bIsCheckNull);
         } catch (Exception objEx) {
             objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
@@ -1407,25 +1456,28 @@ public class ElasticConnection {
         return bIsMerged;
     }
 
+    public Integer refreshIndices(List<String> lstIndex) {
+        Integer intState = 1;
+
+        try {
+            if (objESClient != null) {
+                objESClient.admin().indices().refresh(new RefreshRequest(lstIndex.toArray(new String[lstIndex.size()])));
+            } else {
+                intState = 0;
+            }
+        } catch (NoNodeAvailableException objEx) {
+            intState = -1;
+        } catch (Exception objEx) {
+            intState = 0;
+        }
+
+        return intState;
+    }
+
     protected void refreshIndex(String strIndex) {
-//        try {
-//            if (objESClient != null) {
-//                objESClient.admin().indices().refresh(new RefreshRequest(strIndex)).get();
-//            }
-//        } catch (Exception objEx) {
-//            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
-//        }
     }
 
     protected void refreshIndexArray(List<String> lstIndex) {
-//        try {
-//            if (objESClient != null) {
-//                String[] arrIndex = lstIndex.toArray(new String[lstIndex.size()]);
-//                objESClient.admin().indices().refresh(new RefreshRequest(arrIndex)).get();
-//            }
-//        } catch (Exception objEx) {
-//            objLogger.debug("ERR: " + ExceptionUtil.getStackTrace(objEx));
-//        }
     }
 
     public Boolean deleteScrollId(List<String> lstScrollId) {
