@@ -70,6 +70,8 @@ public class ElasticConnection {
     Boolean bIsUseHotWarm = false;
     Integer intNumShards = 0;
     String strCompressionLevel = "";
+    String strClientPingTimeout = "300s";
+    String strClientPingInterval = "60s";
 
     public static ElasticConnection instance;
 
@@ -184,12 +186,17 @@ public class ElasticConnection {
         try {
             if (this.strTransportUsername == null || this.strTransportUsername.isEmpty()) {
                 Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                        .put("client.transport.sniff", false).build();
+                        .put("client.transport.sniff", false)
+                        .put("client.transport.ping_timeout", strClientPingTimeout)
+                        .put("client.transport.nodes_sampler_interval", strClientPingInterval)
+                        .build();
                 objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class).addTransportAddress(
                         new TransportAddress(InetAddress.getByName(strESCoorNodeIP), intESCoorNodePort));
             } else {
                 Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
                         .put("client.transport.sniff", false)
+                        .put("client.transport.ping_timeout", strClientPingTimeout)
+                        .put("client.transport.nodes_sampler_interval", strClientPingInterval)
                         .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
                         .build();
                 objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
@@ -226,12 +233,17 @@ public class ElasticConnection {
 
                 if (this.strTransportUsername == null || this.strTransportUsername.isEmpty()) {
                     Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
-                            .put("client.transport.sniff", false).build();
+                            .put("client.transport.sniff", false)
+                            .put("client.transport.ping_timeout", strClientPingTimeout)
+                            .put("client.transport.nodes_sampler_interval", strClientPingInterval)
+                            .build();
                     objESClient = new PreBuiltTransportClient(objSetting, MatrixAggregationPlugin.class)
                             .addTransportAddresses(arrConnectionNode.toArray(new TransportAddress[arrConnectionNode.size()]));
                 } else {
                     Settings objSetting = Settings.builder().put("cluster.name", strESClusterName)
                             .put("client.transport.sniff", false)
+                            .put("client.transport.ping_timeout", strClientPingTimeout)
+                            .put("client.transport.nodes_sampler_interval", strClientPingInterval)
                             .put("xpack.security.user", this.strTransportUsername + ":" + this.strTransportPassword)
                             .build();
                     objESClient = new PreBuiltXPackTransportClient(objSetting, MatrixAggregationPlugin.class)
@@ -933,7 +945,7 @@ public class ElasticConnection {
         Boolean isNormalConnection = false;
 
         try {
-            ClusterHealthResponse objHeathResponse = objESClient.admin().cluster().health(new ClusterHealthRequest()).get();
+            ClusterHealthResponse objHeathResponse = objESClient.admin().cluster().prepareHealth().get();
 
             if (objHeathResponse != null && !objHeathResponse.isTimedOut()) {
                 isNormalConnection = true;
