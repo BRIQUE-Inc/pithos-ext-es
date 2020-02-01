@@ -267,8 +267,8 @@ public class ElasticService {
     }
 
     public HashMap<String, Object> searchDataOfIndexArrayWithFieldIdxAndRowIdx(List<String> lstIndex, String strType, String strQuery,
-                                                                   List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
-                                                                   Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField, Boolean bIsRefresh) {
+                                                                               List<String> lstSelectedField, Integer intFromRow, Integer intNumRow, Integer intFromField,
+                                                                               Integer intNumField, Integer intStatsType, ESFilterAllRequestModel objFilterAllRequest, List<ESSortingField> lstSortingField, Boolean bIsRefresh) {
         return objESFilterIndexArray.searchDataWithFieldIdxAndRowIdx(lstIndex, strType, strQuery, lstSelectedField, intFromRow, intNumRow, intFromField, intNumField, intStatsType, objFilterAllRequest, lstSortingField, bIsRefresh);
     }
 
@@ -719,4 +719,3 @@ public class ElasticService {
         return objESConnection.deleteScrollId(lstScrollId);
     }
 }
-

@@ -1663,7 +1663,7 @@ public class ElasticAction {
             for (int intCount = 0; intCount < lstHeader.size(); intCount++) {
                 String strCurHeader = lstHeader.get(intCount);
                 if (mapHeaderMapping.containsKey(strCurHeader)) {
-                     lstMappingHeader.add(mapHeaderMapping.get(strCurHeader));
+                    lstMappingHeader.add(mapHeaderMapping.get(strCurHeader));
                 } else {
                     lstMappingHeader.add(strCurHeader);
                 }
@@ -3400,7 +3400,7 @@ public class ElasticAction {
 
         try {
             if (objESClient != null && strIDField != null && !strIDField.isEmpty()
-                && objESConnection.verifyConnection()) {
+                    && objESConnection.verifyConnection()) {
                 ObjectMapper objCurrentMapper = new ObjectMapper();
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
                 objCurrentMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);

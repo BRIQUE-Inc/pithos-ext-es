@@ -967,7 +967,7 @@ public class ElasticConnection {
     }
 
     public synchronized Boolean createIndex(String strIndex, String strType, List<?> lstData, String strDateField,
-                               HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted, Map<String, Map<String, String>> mapFieldDataType) {
+                                            HashMap<String, ESMappingFieldModel> mapMappingField, Boolean bDelIndexIfExisted, Map<String, Map<String, String>> mapFieldDataType) {
         Boolean bIsCreated = false;
 
         try {
@@ -1240,7 +1240,7 @@ public class ElasticConnection {
                         }
 
                         if ((objCreateIndexResponse != null && objCreateIndexResponse.isAcknowledged())
-                            && verifyConnection()) {
+                                && verifyConnection()) {
                             AcknowledgedResponse objPutMappingResponse = objESClient.admin().indices()
                                     .preparePutMapping(strIndex).setType(strType)
                                     .setSource(strJSONMappingData, XContentType.JSON).get();
@@ -1357,12 +1357,12 @@ public class ElasticConnection {
 
             closeESClient(objESClient);
         } catch (NoNodeAvailableException objEx) {
-          try {
-              Thread.sleep(lWaitNoNode);
-          } catch (Exception ex) {
-          }
+            try {
+                Thread.sleep(lWaitNoNode);
+            } catch (Exception ex) {
+            }
 
-          lstIndices = getAllIndices();
+            lstIndices = getAllIndices();
         } catch (Exception objEx) {
             objLogger.debug(ExceptionUtil.getStackTrace(objEx));
         }
